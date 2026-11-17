@@ -577,6 +577,18 @@ export function createRenderer(canvas) {
       text(state.novaTimer <= 0.5 ? 'Nova READY' : `Nova ${Math.ceil(state.novaTimer)}s`, FIELD.width - 24, 72, '#ffb347', F(700, 16));
       ctx.textAlign = 'left';
     }
+    // Lantern Flare (E): ready, cooling down, or short of shards.
+    ctx.textAlign = 'right';
+    const flareY = state.upgrades.nova > 0 ? 96 : 72;
+    text(
+      state.flareTimer > 0 ? `Flare ${Math.ceil(state.flareTimer)}s`
+        : state.shardsCollected >= 5 ? 'E — Flare READY'
+          : 'Flare needs 5 shards',
+      FIELD.width - 24, flareY,
+      state.flareTimer > 0 || state.shardsCollected < 5 ? PALETTE.muted : '#ffd97a',
+      F(700, 16),
+    );
+    ctx.textAlign = 'left';
     ctx.textAlign = 'right';
     text(muted ? 'M — sound off' : 'M — mute · P — pause', FIELD.width - 24, FIELD.height - 18, PALETTE.muted, F(600, 14));
     ctx.textAlign = 'left';
@@ -609,7 +621,8 @@ export function createRenderer(canvas) {
     text('hunt the golden lantern-moths; an Orbit guards, a Ward saves.', FIELD.width / 2, 368, PALETTE.wisp, F(600, 18));
     text('WASD / arrows — move      Mouse — aim      Click / Space — shoot embers', FIELD.width / 2, 396, PALETTE.text, F(600, 18));
     text('Between nights, pick 1 of 3 upgrades      P — pause      M — mute', FIELD.width / 2, 424, PALETTE.text, F(600, 18));
-    text('Press Space or click to begin', FIELD.width / 2, 470, PALETTE.lanternGlow, F(700, 24));
+    text('E — Lantern Flare: spend 5 shards, burst nearby moths', FIELD.width / 2, 448, PALETTE.text, F(600, 18));
+    text('Press Space or click to begin', FIELD.width / 2, 484, PALETTE.lanternGlow, F(700, 24));
     if (best > 0) {
       text(`Best score ${best}`, FIELD.width / 2, 512, PALETTE.muted, F(600, 18));
     }

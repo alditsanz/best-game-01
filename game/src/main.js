@@ -8,8 +8,8 @@
 import { BEST_KEY, FIELD, NIGHTS_TO_WIN, STEP, nightTheme } from './config.js';
 import { createRandom } from './random.js';
 import { createAudio } from './audio.js';
-import { createWorld, EVENT_BOSS, EVENT_BURST, EVENT_ENRAGE, EVENT_HIT, EVENT_NIGHT_CLEAR, EVENT_NOVA, EVENT_OVER, EVENT_PICKUP, EVENT_SPIT, EVENT_WARD, EVENT_WIN } from './world.js';
-import { ACTION_CONFIRM, ACTION_MUTE, ACTION_PAUSE, ACTION_PICK_1, ACTION_PICK_2, ACTION_PICK_3, ACTION_RESTART, createInput } from './input.js';
+import { createWorld, EVENT_BOSS, EVENT_BURST, EVENT_ENRAGE, EVENT_FLARE, EVENT_HIT, EVENT_NIGHT_CLEAR, EVENT_NOVA, EVENT_OVER, EVENT_PICKUP, EVENT_SPIT, EVENT_WARD, EVENT_WIN } from './world.js';
+import { ACTION_CONFIRM, ACTION_FLARE, ACTION_MUTE, ACTION_PAUSE, ACTION_PICK_1, ACTION_PICK_2, ACTION_PICK_3, ACTION_RESTART, createInput } from './input.js';
 import { CARD, createRenderer, SCREEN_OVER, SCREEN_PAUSED, SCREEN_PLAY, SCREEN_TITLE, SCREEN_UPGRADE, SCREEN_WIN } from './render.js';
 import { stageShot } from './shots.js';
 
@@ -119,6 +119,13 @@ function runGame() {
     if (actions & ACTION_MUTE) {
       audio.setMuted(!audio.isMuted());
       announce(audio.isMuted() ? 'Sound off.' : 'Sound on.');
+    }
+    if (screen === SCREEN_PLAY && (actions & ACTION_FLARE)) {
+      const ev = world.flare();
+      if (ev & EVENT_FLARE) {
+        audio.flare();
+        announce('Lantern Flare — the dark burns back.');
+      }
     }
     if (screen === SCREEN_TITLE) {
       if (actions & ACTION_CONFIRM) startGame();

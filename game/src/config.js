@@ -188,6 +188,19 @@ export const ORBIT = {
   hitCooldown: 0.5,
 };
 
+/** Lantern Flare: press E to spend shards from the lantern meter and burst every
+ * moth (and gloom orb) close to the keeper. Shards are the night's quota, so a
+ * flare buys safety with progress — and it has a cooldown. */
+export const FLARE = {
+  cost: 5,
+  radius: 220,
+  damage: 2,
+  cooldown: 8,
+};
+
+/** Clearing a night without losing a heart pays a Flawless bonus. */
+export const FLAWLESS_BONUS = 250;
+
 export const COMBO = {
   window: 2.5,
   step: 1,

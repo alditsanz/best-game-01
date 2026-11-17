@@ -12,6 +12,8 @@ them with embers, gather their light, and light all seven lanterns before dawn.
 
 - **WASD / arrows** — move the keeper
 - **Mouse** — aim · **Click / Space** — shoot embers
+- **E** — Lantern Flare: spend 5 shards from the lantern meter to burst every
+  moth and gloom orb nearby (8s cooldown) — safety bought with progress
 - **1 / 2 / 3 or click a card** — pick an upgrade between nights
 - **P / Esc** — pause · **M** — mute · **R** — restart
 
@@ -37,7 +39,8 @@ lanterns and dawn breaks — you win. Lose all hearts and the light goes out.
 After a win, Space keeps playing endless nights.
 
 Score comes from bursts (with a combo multiplier for quick successive kills),
-shards, and night bonuses; the best score is kept in the browser. Hold the
+shards, and night bonuses; clearing a night without losing a heart pays a
+Flawless +250. The best score is kept in the browser. Hold the
 combo at its max and the lantern surges — embers hit +1 harder for a few
 seconds. The last night is the Dawn Rush: the garden spawns faster and the
 moth cap rises, so hold the line until dawn.
@@ -52,7 +55,7 @@ moth cap rises, so hold the line until dawn.
   Watch, Swarm Night, the Matriarch Returns, and the Dawn Rush finale.
 - Original art drawn in code (no images) and original sound synthesised with
   WebAudio (no audio files): shoot, burst, pickup, hurt, lantern, upgrade,
-  boss, nova, ward, spit, victory and defeat cues over a soft ambient pad.
+  boss, nova, ward, spit, flare, victory and defeat cues over a soft ambient pad.
 - No libraries, no network, no build step: plain static files under `game/`,
   playable offline in a desktop browser from `game/index.html`.
 

@@ -116,6 +116,11 @@ export function createAudio() {
       tone(240, 0.2, 'sawtooth', 0.10, 120);
       tone(180, 0.14, 'sine', 0.08, 90, 0.05);
     },
+    flare() {
+      if (!ensure()) return;
+      [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.3, 'triangle', 0.13, null, i * 0.03));
+      noise(0.25, 0.12, 3200);
+    },
     ward() {
       if (!ensure()) return;
       [1047, 1319, 1568].forEach((f, i) => tone(f, 0.18, 'triangle', 0.12, null, i * 0.05));

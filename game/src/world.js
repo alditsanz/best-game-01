@@ -10,6 +10,8 @@ import {
   Darter,
   Elder,
   FIELD,
+  FLARE,
+  FLAWLESS_BONUS,
   GloomOrb,
   LanternMoth,
   MOTH,
@@ -40,6 +42,7 @@ export const EVENT_NOVA = 128;
 export const EVENT_ENRAGE = 256;
 export const EVENT_WARD = 512;
 export const EVENT_SPIT = 1024;
+export const EVENT_FLARE = 2048;
 
 export const KIND_MOTH = 'moth';
 export const KIND_DARTER = 'darter';
@@ -102,6 +105,10 @@ export function createWorld(random) {
     wardBlocks: 0,
     surgeTimer: 0,
     surgeTriggers: 0,
+    flareTimer: 0,
+    flareUses: 0,
+    hitsThisNight: 0,
+    flawlessNights: 0,
     time: 0,
     kills: 0,
     nightCleared: false,
@@ -118,6 +125,7 @@ export function createWorld(random) {
     state.boss = null;
     state.nightCleared = false;
     state.ward = state.upgrades.ward;
+    state.hitsThisNight = 0;
     state.moths.length = 0;
     state.orbs.length = 0;
     state.shards.length = 0;
@@ -155,6 +163,10 @@ export function createWorld(random) {
     state.wardBlocks = 0;
     state.surgeTimer = 0;
     state.surgeTriggers = 0;
+    state.flareTimer = 0;
+    state.flareUses = 0;
+    state.hitsThisNight = 0;
+    state.flawlessNights = 0;
     state.time = 0;
     state.offer = [];
     resetNight(1);
@@ -411,6 +423,60 @@ export function createWorld(random) {
     return events;
   }
 
+  /** The Matriarch falls: score, a burst, and her 30 shards. Shared by embers and the flare. */
+  function killBoss(events) {
+    const b = state.boss;
+    state.score += 200 * Math.max(state.combo, 1);
+    burst(b.x, b.y, '#b8579e', 40, 260);
+    dropShards(b.x, b.y, BOSS.shards);
+    addText(b.x, b.y - 60, '+200', '#ffe9a8');
+    state.boss = null;
+    return events | EVENT_BURST;
+  }
+
+  /** Lantern Flare (key E): spend 5 shards from the lantern meter to burst every moth
+   * and gloom orb close to the keeper. On cooldown, or short of shards, it does nothing. */
+  function flare() {
+    if (state.flareTimer > 0 || state.shardsCollected < FLARE.cost) return 0;
+    const p = state.player;
+    state.shardsCollected -= FLARE.cost;
+    state.flareTimer = FLARE.cooldown;
+    state.flareUses += 1;
+    let events = EVENT_FLARE;
+    for (let j = state.moths.length - 1; j >= 0; j -= 1) {
+      const m = state.moths[j];
+      const dx = m.x - p.x;
+      const dy = m.y - p.y;
+      if (dx * dx + dy * dy < (FLARE.radius + m.radius) * (FLARE.radius + m.radius)) {
+        m.hp -= FLARE.damage;
+        m.flash = 0.12;
+        if (m.hp <= 0) events = killMoth(j, events);
+      }
+    }
+    if (state.boss) {
+      const b = state.boss;
+      const dx = b.x - p.x;
+      const dy = b.y - p.y;
+      if (dx * dx + dy * dy < (FLARE.radius + b.radius) * (FLARE.radius + b.radius)) {
+        b.hp -= FLARE.damage;
+        b.flash = 0.12;
+        if (b.hp <= 0) events = killBoss(events);
+      }
+    }
+    for (let j = state.orbs.length - 1; j >= 0; j -= 1) {
+      const g = state.orbs[j];
+      const dx = g.x - p.x;
+      const dy = g.y - p.y;
+      if (dx * dx + dy * dy < (FLARE.radius + GloomOrb.radius) * (FLARE.radius + GloomOrb.radius)) {
+        state.orbs.splice(j, 1);
+        state.orbsShotDown += 1;
+      }
+    }
+    burst(p.x, p.y, '#ffd97a', 26, 320);
+    addText(p.x, p.y - 30, 'FLARE!', '#ffd97a');
+    return events;
+  }
+
   function hurtPlayer(events) {
     const p = state.player;
     if (p.invuln > 0 || p.hearts <= 0) return events;
@@ -427,6 +493,7 @@ export function createWorld(random) {
     p.invuln = PLAYER.invulnerable;
     state.combo = 0;
     state.comboTimer = 0;
+    state.hitsThisNight += 1;
     burst(p.x, p.y, '#ff6b6b', 16, 220);
     events |= EVENT_HIT;
     if (p.hearts <= 0) events |= EVENT_OVER;
@@ -501,14 +568,7 @@ export function createWorld(random) {
           b.hp -= e.damage;
           b.flash = 0.12;
           burst(e.x, e.y, '#ffb347', 5, 140);
-          if (b.hp <= 0) {
-            state.score += 200 * Math.max(state.combo, 1);
-            burst(b.x, b.y, '#b8579e', 40, 260);
-            dropShards(b.x, b.y, BOSS.shards);
-            addText(b.x, b.y - 60, '+200', '#ffe9a8');
-            state.boss = null;
-            events |= EVENT_BURST;
-          }
+          if (b.hp <= 0) events = killBoss(events);
           if (e.pierce > 0) e.pierce -= 1;
           else dead = true;
         }
@@ -735,6 +795,7 @@ export function createWorld(random) {
       if (state.comboTimer <= 0) state.combo = 0;
     }
     if (state.surgeTimer > 0) state.surgeTimer -= dt;
+    if (state.flareTimer > 0) state.flareTimer -= dt;
     const p = state.player;
     if (attract) {
       if (state.moths.length < 6 && random.next() < dt * 0.9) spawnMoth();
@@ -786,11 +847,17 @@ export function createWorld(random) {
     if (state.shardsCollected >= state.quota && bossGone && !state.nightCleared) {
       state.nightCleared = true;
       state.score += 100 * state.night;
+      // A night cleared without losing a heart pays the Flawless bonus.
+      if (state.hitsThisNight === 0) {
+        state.score += FLAWLESS_BONUS;
+        state.flawlessNights += 1;
+        addText(state.player.x, state.player.y - 30, `FLAWLESS! +${FLAWLESS_BONUS}`, '#ffd97a');
+      }
       if (state.night >= NIGHTS_TO_WIN) return events | EVENT_WIN;
       return events | EVENT_NIGHT_CLEAR;
     }
     return events;
   }
 
-  return { state, reset, resetNight, step, rollUpgrades, applyUpgrade };
+  return { state, reset, resetNight, step, flare, rollUpgrades, applyUpgrade };
 }
