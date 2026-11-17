@@ -59,6 +59,34 @@ export const Wisp = {
   spawnShare: 0.18,
 };
 
+/** A splitter is a slow, bloated moth with 2 hp — burst it and it tears into two fast motes. */
+export const Splitter = {
+  radius: 18,
+  speed: 55,
+  hp: 2,
+  shards: 1,
+  /** Share of spawns that are splitters, from night 3 on. */
+  spawnShare: 0.12,
+};
+
+/** A mote is what a splitter leaves behind: tiny, fast, 1 hp — and it still bites. */
+export const Mote = {
+  radius: 7,
+  speed: 180,
+  hp: 1,
+  shards: 1,
+};
+
+/** An elder is a big old moth, slow and tough (3 hp) but heavy with 4 shards. */
+export const Elder = {
+  radius: 20,
+  speed: 45,
+  hp: 3,
+  shards: 4,
+  /** Share of spawns that are elders, from night 5 on. */
+  spawnShare: 0.10,
+};
+
 /** Ember Nova: a ring of embers bursting from the keeper on a timer. */
 export const NOVA = {
   cooldown: 6,
@@ -92,13 +120,20 @@ export function quotaForNight(night) {
 
 /** Moths alive at once, by night: the garden gets busier as the nights pass. */
 export function mothCapForNight(night) {
-  return Math.min(8 + night * 2, 24);
+  return Math.min(8 + night * 2, 24) + (night >= NIGHTS_TO_WIN ? 2 : 0);
+}
+
+/** Spawn-interval multiplier by night: the last night is the Dawn Rush — faster. */
+export function spawnScaleForNight(night) {
+  return night >= NIGHTS_TO_WIN ? 0.85 : 1;
 }
 
 export const COMBO = {
   window: 2.5,
   step: 1,
   max: 8,
+  /** Seconds of +1 ember damage when the combo hits its max — the Lantern Surge. */
+  surgeDuration: 4,
 };
 
 /** Upgrade cards offered between nights. id, title, flavour, apply(state). */
@@ -152,6 +187,12 @@ export const UPGRADES = [
     apply: (u) => { u.comboWindow += 2; u.comboMax += 4; },
   },
   {
+    id: 'lantern-ward',
+    title: 'Lantern Ward',
+    blurb: 'A ward that absorbs one hit each night, then renews.',
+    apply: (u) => { u.ward += 1; },
+  },
+  {
     id: 'warm-heart',
     title: 'Warm Heart',
     blurb: 'Mend one heart now, and carry one more.',
@@ -174,6 +215,11 @@ export const PALETTE = {
   darter: '#d86bb0',
   wisp: '#7fe0c3',
   wispDark: '#3fae8c',
+  splitter: '#c98a4b',
+  splitterDark: '#8a5a28',
+  mote: '#ffd27a',
+  elder: '#d9a7ff',
+  elderDark: '#a06fd0',
   boss: '#b8579e',
   shard: '#ffe9a8',
   text: '#f4ead8',

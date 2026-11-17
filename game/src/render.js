@@ -188,8 +188,104 @@ export function createRenderer(canvas) {
     const flash = m.flash > 0;
     const darter = m.kind === 'darter';
     const wisp = m.kind === 'wisp';
-    const body = flash ? '#d9ccff' : darter ? PALETTE.darter : wisp ? PALETTE.wisp : PALETTE.moth;
-    const wing = flash ? '#efe8ff' : darter ? '#a04a86' : wisp ? PALETTE.wispDark : PALETTE.mothDark;
+    const splitter = m.kind === 'splitter';
+    const mote = m.kind === 'mote';
+    const elder = m.kind === 'elder';
+    const body = flash ? '#d9ccff' : darter ? PALETTE.darter : wisp ? PALETTE.wisp : splitter ? PALETTE.splitter : mote ? PALETTE.mote : elder ? PALETTE.elder : PALETTE.moth;
+    const wing = flash ? '#efe8ff' : darter ? '#a04a86' : wisp ? PALETTE.wispDark : splitter ? PALETTE.splitterDark : elder ? PALETTE.elderDark : PALETTE.mothDark;
+    if (elder) {
+      // An elder is a big pale-violet moth with long antennae and a gold-eyed stare.
+      ctx.save();
+      ctx.translate(m.x, m.y);
+      const flap = Math.sin(time * 8 + m.wobble * 4) * 0.35;
+      ctx.fillStyle = flash ? '#efe8ff' : wing;
+      for (const side of [-1, 1]) {
+        ctx.save();
+        ctx.rotate(side * (0.5 + flap * 0.3));
+        ctx.beginPath();
+        ctx.ellipse(side * m.radius * 0.9, 0, m.radius * 0.95, m.radius * 0.6, side * 0.45, 0, TAU);
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.fillStyle = flash ? '#d9ccff' : body;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, m.radius * 0.55, m.radius * 0.85, 0, 0, TAU);
+      ctx.fill();
+      ctx.strokeStyle = flash ? '#d9ccff' : body;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-4, -m.radius * 0.7);
+      ctx.quadraticCurveTo(-12, -m.radius * 1.3, -18, -m.radius * 1.1);
+      ctx.moveTo(4, -m.radius * 0.7);
+      ctx.quadraticCurveTo(12, -m.radius * 1.3, 18, -m.radius * 1.1);
+      ctx.stroke();
+      ctx.fillStyle = '#ffd97a';
+      ctx.beginPath();
+      ctx.arc(-4, -m.radius * 0.35, 2.5, 0, TAU);
+      ctx.arc(4, -m.radius * 0.35, 2.5, 0, TAU);
+      ctx.fill();
+      if (m.maxHp > 1) {
+        ctx.fillStyle = '#3a2d6b';
+        ctx.fillRect(-m.radius, -m.radius - 10, m.radius * 2, 4);
+        ctx.fillStyle = '#ff7d9c';
+        ctx.fillRect(-m.radius, -m.radius - 10, (m.radius * 2 * m.hp) / m.maxHp, 4);
+      }
+      ctx.restore();
+      return;
+    }
+    if (mote) {
+      // A mote is a bright ember-dot with tiny wings — small, fast, unmistakable.
+      ctx.save();
+      ctx.translate(m.x, m.y);
+      ctx.fillStyle = flash ? '#d9ccff' : wing;
+      ctx.beginPath();
+      ctx.ellipse(-m.radius * 0.8, 0, m.radius * 0.8, m.radius * 0.4, -0.5, 0, TAU);
+      ctx.ellipse(m.radius * 0.8, 0, m.radius * 0.8, m.radius * 0.4, 0.5, 0, TAU);
+      ctx.fill();
+      dot(0, 0, m.radius, body);
+      dot(0, 0, m.radius * 0.45, '#fff3c4');
+      ctx.restore();
+      return;
+    }
+    if (splitter) {
+      // A splitter is a bloated amber moth with a glowing cracked core — it looks heavy.
+      ctx.save();
+      ctx.translate(m.x, m.y);
+      const pulse = 0.5 + 0.5 * Math.sin(time * 5 + m.wobble);
+      const glow = ctx.createRadialGradient(0, 0, 2, 0, 0, m.radius * 1.8);
+      glow.addColorStop(0, `rgba(255, 210, 122, ${0.35 + pulse * 0.25})`);
+      glow.addColorStop(1, 'rgba(255, 210, 122, 0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(0, 0, m.radius * 1.8, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = flash ? '#efe8ff' : wing;
+      for (const side of [-1, 1]) {
+        ctx.beginPath();
+        ctx.ellipse(side * m.radius * 0.85, 0, m.radius * 0.9, m.radius * 0.5, side * 0.4, 0, TAU);
+        ctx.fill();
+      }
+      ctx.fillStyle = flash ? '#d9ccff' : body;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, m.radius * 0.62, m.radius * 0.85, 0, 0, TAU);
+      ctx.fill();
+      dot(0, 0, m.radius * 0.3, '#fff3c4');
+      ctx.strokeStyle = '#8a5a28';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(-m.radius * 0.4, -m.radius * 0.3);
+      ctx.lineTo(0, 0);
+      ctx.lineTo(m.radius * 0.4, -m.radius * 0.35);
+      ctx.stroke();
+      if (m.maxHp > 1) {
+        ctx.fillStyle = '#3a2d6b';
+        ctx.fillRect(-m.radius, -m.radius - 10, m.radius * 2, 4);
+        ctx.fillStyle = '#ff7d9c';
+        ctx.fillRect(-m.radius, -m.radius - 10, (m.radius * 2 * m.hp) / m.maxHp, 4);
+      }
+      ctx.restore();
+      return;
+    }
     if (wisp) {
       // A wisp is a small darting diamond with a teal trail — nothing else looks like it.
       ctx.save();
@@ -324,6 +420,23 @@ export function createRenderer(canvas) {
     for (let i = 0; i < max; i += 1) {
       drawHeart(ctx, 34 + i * 30, 34, 22, i < state.player.hearts);
     }
+    // Lantern Ward charges: gold shields after the hearts, one per hit absorbed.
+    for (let i = 0; i < (state.ward || 0); i += 1) {
+      const x = 34 + max * 30 + i * 24;
+      ctx.save();
+      ctx.translate(x, 34);
+      ctx.beginPath();
+      ctx.moveTo(0, -9);
+      ctx.lineTo(8, -5);
+      ctx.lineTo(8, 2);
+      ctx.quadraticCurveTo(8, 9, 0, 12);
+      ctx.quadraticCurveTo(-8, 9, -8, 2);
+      ctx.lineTo(-8, -5);
+      ctx.closePath();
+      ctx.fillStyle = '#ffd27a';
+      ctx.fill();
+      ctx.restore();
+    }
   }
 
   function drawHud(state, muted) {
@@ -334,8 +447,17 @@ export function createRenderer(canvas) {
     drawHearts(state);
     text(`Score ${state.score}`, 24, 78, PALETTE.text, F(700, 26));
     text(`Night ${Math.min(state.night, NIGHTS_TO_WIN)} / ${NIGHTS_TO_WIN}`, 24, 104, PALETTE.muted, F(600, 18));
+    let hy = 134;
     if (state.combo > 1) {
-      text(`Combo ×${state.combo}`, 24, 134, '#ffb347', F(700, 22));
+      text(`Combo ×${state.combo}`, 24, hy, '#ffb347', F(700, 22));
+      hy += 24;
+    }
+    if (state.surgeTimer > 0) {
+      text(`SURGE +1 dmg ${Math.ceil(state.surgeTimer)}s`, 24, hy, '#ff9d5c', F(700, 18));
+      hy += 24;
+    }
+    if (state.night >= NIGHTS_TO_WIN) {
+      text('DAWN RUSH — hold the line!', 24, hy, '#ff6b6b', F(700, 18));
     }
     // Lantern meter: shards collected toward this night's quota.
     const mx = FIELD.width - 324;
@@ -355,7 +477,7 @@ export function createRenderer(canvas) {
     }
     if (state.upgrades.nova > 0) {
       ctx.textAlign = 'right';
-      text(state.novaTimer <= 0.5 ? 'Nova READY' : `Nova ${Math.ceil(state.novaTimer)}s`, FIELD.width - 24, 52, '#ffb347', F(700, 16));
+      text(state.novaTimer <= 0.5 ? 'Nova READY' : `Nova ${Math.ceil(state.novaTimer)}s`, FIELD.width - 24, 72, '#ffb347', F(700, 16));
       ctx.textAlign = 'left';
     }
     ctx.textAlign = 'right';
@@ -386,9 +508,10 @@ export function createRenderer(canvas) {
     text('Keep the last lantern lit through seven nights.', FIELD.width / 2, 228, PALETTE.text, F(600, 22));
     text('Gloom-moths drift in from the dark. Burst them, gather', FIELD.width / 2, 292, PALETTE.muted, F(400, 18));
     text('their light, and light each lantern before dawn.', FIELD.width / 2, 318, PALETTE.muted, F(400, 18));
-    text('Beware the darting wisps — and let your Ember Nova ring out.', FIELD.width / 2, 344, PALETTE.wisp, F(600, 18));
-    text('WASD / arrows — move      Mouse — aim      Click / Space — shoot embers', FIELD.width / 2, 372, PALETTE.text, F(600, 18));
-    text('Between nights, pick 1 of 3 upgrades      P — pause      M — mute', FIELD.width / 2, 400, PALETTE.text, F(600, 18));
+    text('Beware the darting wisps and splitting gloom —', FIELD.width / 2, 344, PALETTE.wisp, F(600, 18));
+    text('a Lantern Ward can save a heart.', FIELD.width / 2, 368, PALETTE.wisp, F(600, 18));
+    text('WASD / arrows — move      Mouse — aim      Click / Space — shoot embers', FIELD.width / 2, 396, PALETTE.text, F(600, 18));
+    text('Between nights, pick 1 of 3 upgrades      P — pause      M — mute', FIELD.width / 2, 424, PALETTE.text, F(600, 18));
     text('Press Space or click to begin', FIELD.width / 2, 470, PALETTE.lanternGlow, F(700, 24));
     if (best > 0) {
       text(`Best score ${best}`, FIELD.width / 2, 512, PALETTE.muted, F(600, 18));
