@@ -1,0 +1,160 @@
+// Every tuning number and colour in one place. The playfield is a fixed 1280x720 logical area;
+// the renderer scales it to the window, so no rule below depends on the screen size.
+
+export const FIELD = { width: 1280, height: 720 };
+
+/** The simulation's fixed step, in seconds: 60 updates a second whatever the display's rate. */
+export const STEP = 1 / 60;
+
+/** Nights to light before dawn breaks and the game is won. */
+export const NIGHTS_TO_WIN = 7;
+
+/** A boss (Gloom Matriarch) guards the lantern on these nights (1-based). */
+export const BOSS_NIGHTS = [3, 6];
+
+export const PLAYER = {
+  radius: 16,
+  speed: 300,
+  fireInterval: 0.22,
+  emberSpeed: 620,
+  emberRadius: 5,
+  emberDamage: 1,
+  maxHearts: 3,
+  invulnerable: 1.6,
+  pickupRadius: 110,
+};
+
+export const MOTH = {
+  radius: 15,
+  speed: 62,
+  speedPerNight: 7,
+  maxSpeed: 150,
+  hp: 1,
+  hpPerNight: 0.35,
+  shards: 2,
+  spawnInterval: 1.15,
+  spawnScale: 0.9,
+  minSpawnInterval: 0.55,
+  /** Seconds a moth waits at the edge, shivering, before it starts drifting in. */
+  edgePause: 0.8,
+};
+
+export const Darter = {
+  radius: 11,
+  speed: 170,
+  hp: 1,
+  shards: 3,
+  /** A darter pauses, aims, then lunges at the keeper. */
+  aimTime: 0.9,
+  lungeTime: 0.55,
+};
+
+export const BOSS = {
+  radius: 52,
+  speed: 42,
+  hp: 26,
+  hpPerNight: 8,
+  shards: 30,
+  spawnInterval: 2.4,
+  contactDamage: 1,
+};
+
+export const SHARD = {
+  radius: 7,
+  value: 1,
+  magnetSpeed: 320,
+  life: 20,
+};
+
+/** Shards needed to light the lantern on night n (1-based). */
+export function quotaForNight(night) {
+  return 14 + (night - 1) * 8;
+}
+
+/** Moths alive at once, by night: the garden gets busier as the nights pass. */
+export function mothCapForNight(night) {
+  return Math.min(8 + night * 2, 24);
+}
+
+export const COMBO = {
+  window: 2.5,
+  step: 1,
+  max: 8,
+};
+
+/** Upgrade cards offered between nights. id, title, flavour, apply(state). */
+export const UPGRADES = [
+  {
+    id: 'swift-embers',
+    title: 'Swift Embers',
+    blurb: 'Embers fly 35% faster and fire 20% quicker.',
+    apply: (u) => { u.fireInterval *= 0.8; u.emberSpeed *= 1.35; },
+  },
+  {
+    id: 'spread-shot',
+    title: 'Tri-Flame',
+    blurb: 'Shoot three embers in a fan instead of one.',
+    apply: (u) => { u.shots += 2; },
+  },
+  {
+    id: 'piercing-embers',
+    title: 'Piercing Embers',
+    blurb: 'Embers pass through one extra moth.',
+    apply: (u) => { u.pierce += 1; },
+  },
+  {
+    id: 'swift-boots',
+    title: 'Mothwing Boots',
+    blurb: 'Move 25% faster through the garden.',
+    apply: (u) => { u.speed *= 1.25; },
+  },
+  {
+    id: 'wide-net',
+    title: 'Wide Net',
+    blurb: 'Shards drift to you from twice as far.',
+    apply: (u) => { u.pickupRadius *= 2; },
+  },
+  {
+    id: 'heavy-embers',
+    title: 'Heavy Embers',
+    blurb: 'Each ember hits twice as hard.',
+    apply: (u) => { u.emberDamage += 1; },
+  },
+  {
+    id: 'warm-heart',
+    title: 'Warm Heart',
+    blurb: 'Mend one heart now, and carry one more.',
+    apply: (u) => { u.maxHearts += 1; },
+  },
+];
+
+export const PALETTE = {
+  backdrop: '#0d0a1a',
+  garden: '#14102a',
+  ground: '#1c1538',
+  hedge: '#241b47',
+  lanternGlow: '#ffd97a',
+  ember: '#ffb347',
+  emberCore: '#fff3c4',
+  player: '#ffd97a',
+  playerRing: '#fff3c4',
+  moth: '#8f7bd8',
+  mothDark: '#6b57b8',
+  darter: '#d86bb0',
+  boss: '#b8579e',
+  shard: '#ffe9a8',
+  text: '#f4ead8',
+  muted: '#a99fc7',
+  danger: '#ff6b6b',
+  panel: '#1e1738',
+  panelEdge: '#3a2d6b',
+  card: '#251c48',
+  cardEdge: '#57468f',
+  heart: '#ff7d9c',
+  heartEmpty: '#4a3f6e',
+};
+
+export const FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif';
+
+/** Where the best score is kept between visits (this browser only). */
+export const BEST_KEY = 'emberkeeper.best';
