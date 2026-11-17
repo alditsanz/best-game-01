@@ -11,9 +11,11 @@ import {
   FIELD,
   MOTH,
   NIGHTS_TO_WIN,
+  NOVA,
   PLAYER,
   SHARD,
   UPGRADES,
+  Wisp,
   mothCapForNight,
   quotaForNight,
 } from './config.js';
@@ -25,9 +27,12 @@ export const EVENT_NIGHT_CLEAR = 8;
 export const EVENT_BOSS = 16;
 export const EVENT_PICKUP = 32;
 export const EVENT_BURST = 64;
+export const EVENT_NOVA = 128;
+export const EVENT_ENRAGE = 256;
 
 export const KIND_MOTH = 'moth';
 export const KIND_DARTER = 'darter';
+export const KIND_WISP = 'wisp';
 
 const TAU = Math.PI * 2;
 
@@ -41,6 +46,9 @@ function freshUpgrades() {
     pickupRadius: PLAYER.pickupRadius,
     emberDamage: PLAYER.emberDamage,
     maxHearts: PLAYER.maxHearts,
+    nova: 0,
+    comboWindow: COMBO.window,
+    comboMax: COMBO.max,
   };
 }
 
@@ -63,6 +71,8 @@ export function createWorld(random) {
     spawnTimer: 1,
     bossSpawnTimer: 0,
     bossAnnounced: false,
+    novaTimer: NOVA.cooldown,
+    novaFires: 0,
     time: 0,
     kills: 0,
     nightCleared: false,
@@ -101,6 +111,8 @@ export function createWorld(random) {
     state.comboTimer = 0;
     state.kills = 0;
     state.nightCleared = false;
+    state.novaTimer = NOVA.cooldown;
+    state.novaFires = 0;
     state.time = 0;
     state.offer = [];
     resetNight(1);
@@ -115,14 +127,14 @@ export function createWorld(random) {
     return { x: FIELD.width + m, y: random.range(m, FIELD.height - m) };
   }
 
-  /** One moth of either kind, at (x, y); boss-spawned moths pass a fixed wobbleSpeed, no edge pause, and 1 hp. */
+  /** One moth of either kind, at (x, y); boss-spawned moths pass a fixed wobbleSpeed, no edge pause, and 1 hp. Wisps never spawn from the boss. */
   function makeMoth(kind, x, y, wobbleSpeed, pause, hp) {
-    const cfg = kind === KIND_DARTER ? Darter : MOTH;
-    const scaledHp = kind === KIND_DARTER ? 1 : Math.max(1, Math.round(MOTH.hp + MOTH.hpPerNight * (state.night - 1)));
+    const cfg = kind === KIND_DARTER ? Darter : kind === KIND_WISP ? Wisp : MOTH;
+    const scaledHp = kind === KIND_MOTH ? Math.max(1, Math.round(MOTH.hp + MOTH.hpPerNight * (state.night - 1))) : 1;
     hp = hp ?? scaledHp;
     return {
       kind, x, y, hp, maxHp: hp, radius: cfg.radius,
-      speed: kind === KIND_DARTER ? cfg.speed : Math.min(MOTH.speed + MOTH.speedPerNight * (state.night - 1), MOTH.maxSpeed),
+      speed: kind === KIND_DARTER ? cfg.speed : kind === KIND_WISP ? cfg.speed : Math.min(MOTH.speed + MOTH.speedPerNight * (state.night - 1), MOTH.maxSpeed),
       pause: pause ?? (kind === KIND_MOTH ? MOTH.edgePause : 0),
       wobble: random.range(0, TAU),
       wobbleSpeed: wobbleSpeed ?? random.range(1.5, 3),
@@ -134,7 +146,12 @@ export function createWorld(random) {
 
   function spawnMoth() {
     const p = edgePoint();
-    const kind = random.next() < 0.3 ? KIND_DARTER : KIND_MOTH;
+    const r = random.next();
+    // Night 1 keeps the old 30% darter share; from night 2, 18% of spawns are
+    // wisps and 30% of the rest are darters, so moths stay the majority.
+    const wisp = state.night >= 2 && r < Wisp.spawnShare;
+    const darterAt = state.night >= 2 ? Wisp.spawnShare + (1 - Wisp.spawnShare) * 0.3 : 0.3;
+    const kind = wisp ? KIND_WISP : r < darterAt ? KIND_DARTER : KIND_MOTH;
     state.moths.push(makeMoth(kind, p.x, p.y));
   }
 
@@ -150,6 +167,8 @@ export function createWorld(random) {
       speed: BOSS.speed,
       flash: 0,
       spawnTimer: 1.2,
+      spawnInterval: BOSS.spawnInterval,
+      enraged: false,
     };
     return EVENT_BOSS;
   }
@@ -191,16 +210,39 @@ export function createWorld(random) {
     const moth = state.moths[index];
     state.moths.splice(index, 1);
     state.kills += 1;
-    state.combo = Math.min(state.combo + COMBO.step, COMBO.max);
-    state.comboTimer = COMBO.window;
+    state.combo = Math.min(state.combo + COMBO.step, state.upgrades.comboMax);
+    state.comboTimer = state.upgrades.comboWindow;
     const gained = 10 * state.combo;
     state.score += gained;
     const darter = moth.kind === KIND_DARTER;
-    const color = darter ? '#d86bb0' : '#8f7bd8';
-    burst(moth.x, moth.y, color, darter ? 18 : 12, 180);
-    dropShards(moth.x, moth.y, darter ? Darter.shards : MOTH.shards);
+    const wisp = moth.kind === KIND_WISP;
+    const color = darter ? '#d86bb0' : wisp ? '#7fe0c3' : '#8f7bd8';
+    burst(moth.x, moth.y, color, darter ? 18 : wisp ? 8 : 12, 180);
+    dropShards(moth.x, moth.y, darter ? Darter.shards : wisp ? Wisp.shards : MOTH.shards);
     addText(moth.x, moth.y - 18, `+${gained}`, '#ffe9a8');
     return events | EVENT_BURST;
+  }
+
+  /** Ember Nova: a ring of embers bursting out from the keeper in every direction. */
+  function fireNova(events) {
+    const p = state.player;
+    const u = state.upgrades;
+    const n = NOVA.embers + NOVA.embersPerLevel * (u.nova - 1);
+    for (let i = 0; i < n; i += 1) {
+      const a = (i / n) * TAU;
+      state.embers.push({
+        x: p.x + Math.cos(a) * (PLAYER.radius + 6),
+        y: p.y + Math.sin(a) * (PLAYER.radius + 6),
+        vx: Math.cos(a) * u.emberSpeed,
+        vy: Math.sin(a) * u.emberSpeed,
+        pierce: u.pierce,
+        damage: u.emberDamage,
+      });
+    }
+    state.novaFires += 1;
+    state.novaTimer = Math.max(NOVA.minCooldown, NOVA.cooldown - NOVA.cooldownPerLevel * (u.nova - 1));
+    burst(p.x, p.y, '#ffb347', 14, 200);
+    return events | EVENT_NOVA;
   }
 
   function hurtPlayer(events) {
@@ -298,7 +340,14 @@ export function createWorld(random) {
       const dx = p.x - m.x;
       const dy = p.y - m.y;
       const d = Math.hypot(dx, dy) || 1;
-      if (m.kind === KIND_DARTER) {
+      if (m.kind === KIND_WISP) {
+        // A wisp weaves hard side to side as it closes in — fast, but it telegraphs.
+        const px = -dy / d;
+        const py = dx / d;
+        const weave = Math.sin(m.wobble * 2.4) * 120;
+        m.x += ((dx / d) * m.speed + px * weave) * dt;
+        m.y += ((dy / d) * m.speed + py * weave) * dt;
+      } else if (m.kind === KIND_DARTER) {
         if (m.mode === 'drift') {
           m.modeTimer -= dt;
           m.x += (dx / d) * m.speed * 0.35 * dt + Math.cos(m.wobble) * 26 * dt;
@@ -337,6 +386,13 @@ export function createWorld(random) {
     const b = state.boss;
     if (!b) return events;
     b.flash = Math.max(0, b.flash - dt);
+    // Below half health the Matriarch enrages: faster, and she calls moths sooner.
+    if (!b.enraged && b.hp <= b.maxHp / 2) {
+      b.enraged = true;
+      b.speed *= 1.25;
+      b.spawnInterval = 2.0;
+      events |= EVENT_ENRAGE;
+    }
     const p = state.player;
     const dx = p.x - b.x;
     const dy = p.y - b.y;
@@ -345,7 +401,7 @@ export function createWorld(random) {
     b.y += (dy / d) * b.speed * dt;
     b.spawnTimer -= dt;
     if (b.spawnTimer <= 0 && state.moths.length < mothCapForNight(state.night)) {
-      b.spawnTimer = BOSS.spawnInterval;
+      b.spawnTimer = b.spawnInterval;
       const a = random.range(0, TAU);
       state.moths.push(makeMoth(KIND_MOTH, b.x + Math.cos(a) * (b.radius + 20), b.y + Math.sin(a) * (b.radius + 20), 2, 0, 1));
     }
@@ -459,6 +515,10 @@ export function createWorld(random) {
     if (firing && p.fireTimer <= 0) {
       p.fireTimer = state.upgrades.fireInterval;
       fireEmbers(aim);
+    }
+    if (state.upgrades.nova > 0) {
+      state.novaTimer -= dt;
+      if (state.novaTimer <= 0) events = fireNova(events);
     }
 
     const isBossNight = BOSS_NIGHTS.includes(state.night);

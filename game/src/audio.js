@@ -106,6 +106,11 @@ export function createAudio() {
       tone(110, 0.6, 'sawtooth', 0.16, 55);
       tone(165, 0.6, 'sawtooth', 0.10, 82, 0.1);
     },
+    nova() {
+      if (!ensure()) return;
+      [659, 880, 1175].forEach((f, i) => tone(f, 0.14, 'triangle', 0.11, null, i * 0.04));
+      noise(0.1, 0.07, 3200);
+    },
     victory() {
       if (!ensure()) return;
       [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.5, 'triangle', 0.13, null, i * 0.12));

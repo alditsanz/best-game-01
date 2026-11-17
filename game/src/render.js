@@ -187,8 +187,34 @@ export function createRenderer(canvas) {
   function drawMoth(m, time) {
     const flash = m.flash > 0;
     const darter = m.kind === 'darter';
-    const body = flash ? '#d9ccff' : darter ? PALETTE.darter : PALETTE.moth;
-    const wing = flash ? '#efe8ff' : darter ? '#a04a86' : PALETTE.mothDark;
+    const wisp = m.kind === 'wisp';
+    const body = flash ? '#d9ccff' : darter ? PALETTE.darter : wisp ? PALETTE.wisp : PALETTE.moth;
+    const wing = flash ? '#efe8ff' : darter ? '#a04a86' : wisp ? PALETTE.wispDark : PALETTE.mothDark;
+    if (wisp) {
+      // A wisp is a small darting diamond with a teal trail — nothing else looks like it.
+      ctx.save();
+      ctx.translate(m.x, m.y);
+      ctx.rotate(Math.sin(time * 6 + m.wobble) * 0.5);
+      const glow = ctx.createRadialGradient(0, 0, 1, 0, 0, 22);
+      glow.addColorStop(0, 'rgba(127, 224, 195, 0.55)');
+      glow.addColorStop(1, 'rgba(127, 224, 195, 0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(0, 0, 22, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = flash ? '#d9ccff' : body;
+      ctx.beginPath();
+      ctx.moveTo(0, -m.radius);
+      ctx.lineTo(m.radius * 0.7, 0);
+      ctx.lineTo(0, m.radius);
+      ctx.lineTo(-m.radius * 0.7, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#eafff6';
+      dot(0, 0, 3, '#eafff6');
+      ctx.restore();
+      return;
+    }
     const flap = Math.sin(time * 14 + m.wobble * 4) * 0.5;
     ctx.save();
     ctx.translate(m.x, m.y);
@@ -221,17 +247,18 @@ export function createRenderer(canvas) {
 
   function drawBoss(b, time) {
     const flash = b.flash > 0;
+    const enraged = !!b.enraged;
     const flap = Math.sin(time * 9) * 0.4;
     ctx.save();
     ctx.translate(b.x, b.y);
     const glow = ctx.createRadialGradient(0, 0, 10, 0, 0, b.radius * 2.2);
-    glow.addColorStop(0, 'rgba(184, 87, 158, 0.4)');
-    glow.addColorStop(1, 'rgba(184, 87, 158, 0)');
+    glow.addColorStop(0, enraged ? 'rgba(255, 80, 80, 0.5)' : 'rgba(184, 87, 158, 0.4)');
+    glow.addColorStop(1, enraged ? 'rgba(255, 80, 80, 0)' : 'rgba(184, 87, 158, 0)');
     ctx.fillStyle = glow;
     ctx.beginPath();
     ctx.arc(0, 0, b.radius * 2.2, 0, TAU);
     ctx.fill();
-    ctx.fillStyle = flash ? '#e59ad2' : '#7a3a72';
+    ctx.fillStyle = flash ? '#e59ad2' : enraged ? '#8f2a4a' : '#7a3a72';
     for (const side of [-1, 1]) {
       ctx.save();
       ctx.rotate(side * (0.6 + flap * 0.3));
@@ -240,7 +267,7 @@ export function createRenderer(canvas) {
       ctx.fill();
       ctx.restore();
     }
-    ctx.fillStyle = flash ? '#e59ad2' : PALETTE.boss;
+    ctx.fillStyle = flash ? '#e59ad2' : enraged ? '#c23a5e' : PALETTE.boss;
     ctx.beginPath();
     ctx.ellipse(0, 0, b.radius * 0.5, b.radius * 0.75, 0, 0, TAU);
     ctx.fill();
@@ -321,9 +348,14 @@ export function createRenderer(canvas) {
     if (state.boss) {
       const bx = FIELD.width / 2 - 200;
       fillRound(bx, 96, 400, 18, 9, PALETTE.panel);
-      fillRound(bx + 2, 98, Math.max(6, 396 * (state.boss.hp / state.boss.maxHp)), 14, 7, PALETTE.boss);
+      fillRound(bx + 2, 98, Math.max(6, 396 * (state.boss.hp / state.boss.maxHp)), 14, 7, state.boss.enraged ? '#ff5050' : PALETTE.boss);
       ctx.textAlign = 'center';
-      text('GLOOM MATRIARCH', FIELD.width / 2, 88, PALETTE.text, F(700, 16));
+      text(state.boss.enraged ? 'GLOOM MATRIARCH — ENRAGED' : 'GLOOM MATRIARCH', FIELD.width / 2, 88, PALETTE.text, F(700, 16));
+      ctx.textAlign = 'left';
+    }
+    if (state.upgrades.nova > 0) {
+      ctx.textAlign = 'right';
+      text(state.novaTimer <= 0.5 ? 'Nova READY' : `Nova ${Math.ceil(state.novaTimer)}s`, FIELD.width - 24, 52, '#ffb347', F(700, 16));
       ctx.textAlign = 'left';
     }
     ctx.textAlign = 'right';
@@ -354,6 +386,7 @@ export function createRenderer(canvas) {
     text('Keep the last lantern lit through seven nights.', FIELD.width / 2, 228, PALETTE.text, F(600, 22));
     text('Gloom-moths drift in from the dark. Burst them, gather', FIELD.width / 2, 292, PALETTE.muted, F(400, 18));
     text('their light, and light each lantern before dawn.', FIELD.width / 2, 318, PALETTE.muted, F(400, 18));
+    text('Beware the darting wisps — and let your Ember Nova ring out.', FIELD.width / 2, 344, PALETTE.wisp, F(600, 18));
     text('WASD / arrows — move      Mouse — aim      Click / Space — shoot embers', FIELD.width / 2, 372, PALETTE.text, F(600, 18));
     text('Between nights, pick 1 of 3 upgrades      P — pause      M — mute', FIELD.width / 2, 400, PALETTE.text, F(600, 18));
     text('Press Space or click to begin', FIELD.width / 2, 470, PALETTE.lanternGlow, F(700, 24));

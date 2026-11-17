@@ -8,7 +8,7 @@
 import { BEST_KEY, FIELD, STEP } from './config.js';
 import { createRandom } from './random.js';
 import { createAudio } from './audio.js';
-import { createWorld, EVENT_BOSS, EVENT_BURST, EVENT_HIT, EVENT_NIGHT_CLEAR, EVENT_OVER, EVENT_PICKUP, EVENT_WIN } from './world.js';
+import { createWorld, EVENT_BOSS, EVENT_BURST, EVENT_ENRAGE, EVENT_HIT, EVENT_NIGHT_CLEAR, EVENT_NOVA, EVENT_OVER, EVENT_PICKUP, EVENT_WIN } from './world.js';
 import { ACTION_CONFIRM, ACTION_MUTE, ACTION_PAUSE, ACTION_PICK_1, ACTION_PICK_2, ACTION_PICK_3, ACTION_RESTART, createInput } from './input.js';
 import { CARD, createRenderer, SCREEN_OVER, SCREEN_PAUSED, SCREEN_PLAY, SCREEN_TITLE, SCREEN_UPGRADE, SCREEN_WIN } from './render.js';
 import { stageShot } from './shots.js';
@@ -180,6 +180,7 @@ function runGame() {
     if (screen !== SCREEN_PLAY) return;
     const events = world.step(STEP, input.direction(), input.aim(), input.firing(), false);
     if (events & EVENT_BURST) audio.burst(world.state.combo);
+    if (events & EVENT_NOVA) audio.nova();
     if (events & EVENT_PICKUP) audio.pickup();
     if (events & EVENT_HIT) {
       audio.hurt();
@@ -188,6 +189,10 @@ function runGame() {
     if (events & EVENT_BOSS) {
       audio.boss();
       announce('The Gloom Matriarch comes for the lantern.');
+    }
+    if (events & EVENT_ENRAGE) {
+      audio.boss();
+      announce('The Matriarch is enraged — she moves faster now!');
     }
     if (events & EVENT_WIN) endGame(true);
     else if (events & EVENT_OVER) endGame(false);

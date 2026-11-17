@@ -13,12 +13,12 @@ const LIMIT_SECONDS = 1500;
 
 /** Where the autopilot wants to go, and whether it fires, for this state. A sloppy pilot
  * only fires at close moths, so more of them are alive in the frame. `spareBoss` leaves
- * the Matriarch alone (the play scene wants her in the frame, alive). */
+ * the Matriarch alone (the play scene wants her in the frame, alive). The pilot aims at
+ * the nearest foe — boss or moth — so it never stands still while a moth closes in. */
 function autopilot(state, sloppy, spareBoss) {
   const p = state.player;
   let nearest = null;
   let nearestD = Infinity;
-  const target = spareBoss ? null : state.boss;
   for (const m of state.moths) {
     const d = (m.x - p.x) * (m.x - p.x) + (m.y - p.y) * (m.y - p.y);
     if (d < nearestD) {
@@ -26,7 +26,14 @@ function autopilot(state, sloppy, spareBoss) {
       nearest = m;
     }
   }
-  const foe = target || nearest;
+  let foe = nearest;
+  if (!spareBoss && state.boss) {
+    const bd = (state.boss.x - p.x) * (state.boss.x - p.x) + (state.boss.y - p.y) * (state.boss.y - p.y);
+    if (bd < nearestD) {
+      nearestD = bd;
+      foe = state.boss;
+    }
+  }
   const aim = foe ? { x: foe.x, y: foe.y } : { x: FIELD.width / 2, y: FIELD.height / 2 };
   let mx = 0;
   let my = 0;
@@ -57,7 +64,7 @@ function autopilot(state, sloppy, spareBoss) {
     }
   }
   const len = Math.hypot(mx, my) || 1;
-  const firing = sloppy ? foe !== null && danger < 420 : foe !== null;
+  const firing = sloppy ? foe !== null && danger < 320 : foe !== null;
   return { move: { x: mx / len, y: my / len }, aim, firing };
 }
 
@@ -105,7 +112,7 @@ export function stageShot(name, world) {
       true,
       true,
     );
-    runUntil(world, (e) => (e & EVENT_OVER) !== 0, 8, true, true);
+    runUntil(world, (e) => (e & EVENT_OVER) !== 0, 5, true, true);
     return { screen: world.state.player.hearts <= 0 ? SCREEN_OVER : SCREEN_PLAY, best: world.state.score };
   }
   if (name === 'upgrade') {

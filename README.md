@@ -17,21 +17,25 @@ them with embers, gather their light, and light all seven lanterns before dawn.
 
 Each night has a shard quota: fill the lantern meter and the next lantern
 lights. Between nights, choose 1 of 3 blessings (faster embers, tri-flame,
-piercing embers, swift boots, wide net, heavy embers, warm heart). Every 3rd
-night a Gloom Matriarch boss guards the lantern. Three hearts; a touch costs
-one. Light all 7 lanterns and dawn breaks — you win. Lose all hearts and the
-light goes out. After a win, Space keeps playing endless nights.
+piercing embers, swift boots, wide net, heavy embers, warm heart, Ember Nova,
+Ember Echo). From night 2, quick darting Gloom Wisps weave in among the moths
+and darters. Every 3rd night a Gloom Matriarch boss guards the lantern — and
+below half health she enrages, moving faster and calling moths sooner. Three
+hearts; a touch costs one. Light all 7 lanterns and dawn breaks — you win.
+Lose all hearts and the light goes out. After a win, Space keeps playing
+endless nights.
 
 Score comes from bursts (with a combo multiplier for quick successive kills),
 shards, and night bonuses; the best score is kept in the browser.
 
 ## The game
 
-- A complete loop: title → 7 nights with escalating moths and darters → boss
-  nights → upgrade choices → victory or game-over screen → restart / endless.
+- A complete loop: title → 7 nights with escalating moths, darters and
+  wisps → enraging boss nights → 9 upgrade choices → victory or game-over
+  screen → restart / endless.
 - Original art drawn in code (no images) and original sound synthesised with
   WebAudio (no audio files): shoot, burst, pickup, hurt, lantern, upgrade,
-  boss, victory and defeat cues over a soft ambient pad.
+  boss, nova, victory and defeat cues over a soft ambient pad.
 - No libraries, no network, no build step: plain static files under `game/`,
   playable offline in a desktop browser from `game/index.html`.
 

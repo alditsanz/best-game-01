@@ -49,6 +49,25 @@ export const Darter = {
   lungeTime: 0.55,
 };
 
+/** A wisp is small, fast and weaves side to side — hard to hit, easy to dodge. */
+export const Wisp = {
+  radius: 9,
+  speed: 175,
+  hp: 1,
+  shards: 2,
+  /** Share of spawns that are wisps, from night 2 on. */
+  spawnShare: 0.18,
+};
+
+/** Ember Nova: a ring of embers bursting from the keeper on a timer. */
+export const NOVA = {
+  cooldown: 6,
+  cooldownPerLevel: 0.8,
+  minCooldown: 3.5,
+  embers: 6,
+  embersPerLevel: 2,
+};
+
 export const BOSS = {
   radius: 52,
   speed: 42,
@@ -121,6 +140,18 @@ export const UPGRADES = [
     apply: (u) => { u.emberDamage += 1; },
   },
   {
+    id: 'ember-nova',
+    title: 'Ember Nova',
+    blurb: 'Every few seconds a ring of embers bursts from you.',
+    apply: (u) => { u.nova += 1; },
+  },
+  {
+    id: 'ember-echo',
+    title: 'Ember Echo',
+    blurb: 'Your combo lasts 2s longer and can climb to ×12.',
+    apply: (u) => { u.comboWindow += 2; u.comboMax += 4; },
+  },
+  {
     id: 'warm-heart',
     title: 'Warm Heart',
     blurb: 'Mend one heart now, and carry one more.',
@@ -141,6 +172,8 @@ export const PALETTE = {
   moth: '#8f7bd8',
   mothDark: '#6b57b8',
   darter: '#d86bb0',
+  wisp: '#7fe0c3',
+  wispDark: '#3fae8c',
   boss: '#b8579e',
   shard: '#ffe9a8',
   text: '#f4ead8',
