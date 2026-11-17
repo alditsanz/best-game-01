@@ -5,7 +5,6 @@
 
 import {
   BOSS,
-  BOSS_NIGHTS,
   COMBO,
   Darter,
   Elder,
@@ -110,6 +109,8 @@ export function createWorld(random) {
     flareUses: 0,
     hitsThisNight: 0,
     flawlessNights: 0,
+    /** True once the keeper keeps playing past dawn — endless nights never win again. */
+    endless: false,
     time: 0,
     kills: 0,
     nightCleared: false,
@@ -168,6 +169,7 @@ export function createWorld(random) {
     state.flareUses = 0;
     state.hitsThisNight = 0;
     state.flawlessNights = 0;
+    state.endless = false;
     state.time = 0;
     state.offer = [];
     resetNight(1);
@@ -209,7 +211,7 @@ export function createWorld(random) {
     // are spitters — 20% on Spitter's Watch (night 4); from night 5, 10% of
     // the rest are elders — moths stay the majority.
     const splitterAt = state.night >= 3 ? Splitter.spawnShare : 0;
-    const spitterShare = state.night === 4 ? 0.20 : Spitter.spawnShare;
+    const spitterShare = nightTheme(state.night).id === 'spitters-watch' ? 0.20 : Spitter.spawnShare;
     const spitterAt = splitterAt + (state.night >= 3 ? spitterShare * (1 - splitterAt) : 0);
     const lanternAt = spitterAt + (state.night >= 2 ? LanternMoth.spawnShare * (1 - spitterAt) : 0);
     const wispShare = nightTheme(state.night).id === 'wisp-tide' ? 0.30 : Wisp.spawnShare;
@@ -844,7 +846,8 @@ export function createWorld(random) {
       if (state.novaTimer <= 0) events = fireNova(events);
     }
 
-    const isBossNight = BOSS_NIGHTS.includes(state.night);
+    // A boss guards the lantern every 3rd night — nights 3 and 6, then 9, 12, … endless.
+    const isBossNight = state.night % 3 === 0;
     if (isBossNight && !state.bossAnnounced && state.shardsCollected >= Math.floor(state.quota * 0.4)) {
       state.bossAnnounced = true;
       events |= spawnBoss();
@@ -874,7 +877,7 @@ export function createWorld(random) {
         state.flawlessNights += 1;
         addText(state.player.x, state.player.y - 30, `FLAWLESS! +${FLAWLESS_BONUS}`, '#ffd97a');
       }
-      if (state.night >= NIGHTS_TO_WIN) return events | EVENT_WIN;
+      if (state.night === NIGHTS_TO_WIN && !state.endless) return events | EVENT_WIN;
       return events | EVENT_NIGHT_CLEAR;
     }
     return events;

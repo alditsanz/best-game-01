@@ -534,10 +534,10 @@ export function createRenderer(canvas) {
     fillRound(12, 12, 260, 132, 14, 'rgba(13, 10, 26, 0.55)');
     drawHearts(state);
     text(`Score ${state.score}`, 24, 78, PALETTE.text, F(700, 26));
-    text(`Night ${Math.min(state.night, NIGHTS_TO_WIN)} / ${NIGHTS_TO_WIN}`, 24, 104, PALETTE.muted, F(600, 18));
+    text(state.night > NIGHTS_TO_WIN ? `Endless Night ${state.night}` : `Night ${Math.min(state.night, NIGHTS_TO_WIN)} / ${NIGHTS_TO_WIN}`, 24, 104, PALETTE.muted, F(600, 18));
     let hy = 134;
     const theme = nightTheme(state.night);
-    if (state.night < NIGHTS_TO_WIN) {
+    if (state.night !== NIGHTS_TO_WIN) {
       text(`${theme.name} — ${theme.blurb}`, 24, hy, '#c77dff', F(700, 18));
       hy += 24;
     }
@@ -553,7 +553,7 @@ export function createRenderer(canvas) {
       text(`Orbit ×${state.orbiters.length}`, 24, hy, '#ffd97a', F(700, 18));
       hy += 24;
     }
-    if (state.night >= NIGHTS_TO_WIN) {
+    if (state.night === NIGHTS_TO_WIN) {
       text('DAWN RUSH — hold the line!', 24, hy, '#ff6b6b', F(700, 18));
     }
     // Lantern meter: shards collected toward this night's quota.

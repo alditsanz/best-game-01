@@ -109,9 +109,11 @@ function runGame() {
     world.resetNight(world.state.night + 1);
     screen = SCREEN_PLAY;
     const theme = nightTheme(world.state.night);
-    announce(world.state.night >= NIGHTS_TO_WIN
+    announce(world.state.night === NIGHTS_TO_WIN
       ? `Night ${world.state.night}. The Dawn Rush — hold the line!`
-      : `Night ${world.state.night}. ${theme.name} — ${theme.blurb}. ${world.state.player.hearts} hearts.`);
+      : world.state.night > NIGHTS_TO_WIN
+        ? `Endless night ${world.state.night}. ${theme.name} — ${theme.blurb}. ${world.state.player.hearts} hearts.`
+        : `Night ${world.state.night}. ${theme.name} — ${theme.blurb}. ${world.state.player.hearts} hearts.`);
   }
 
   function handleActions() {
@@ -137,9 +139,11 @@ function runGame() {
         if (screen === SCREEN_WIN && !endless) {
           // Keep playing: endless nights, the lanterns stay lit.
           endless = true;
+          world.state.endless = true;
           world.resetNight(world.state.night + 1);
           screen = SCREEN_PLAY;
-          announce(`Endless night ${world.state.night}.`);
+          const theme = nightTheme(world.state.night);
+          announce(`Endless night ${world.state.night} — ${theme.name}.`);
         } else startGame();
       }
       return;

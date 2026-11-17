@@ -9,9 +9,6 @@ export const STEP = 1 / 60;
 /** Nights to light before dawn breaks and the game is won. */
 export const NIGHTS_TO_WIN = 7;
 
-/** A boss (Gloom Matriarch) guards the lantern on these nights (1-based). */
-export const BOSS_NIGHTS = [3, 6];
-
 export const PLAYER = {
   radius: 16,
   speed: 300,
@@ -156,15 +153,23 @@ export function quotaForNight(night) {
 }
 
 /** Moths alive at once, by night: the garden gets busier as the nights pass. Night 5 is
- * the Swarm Night — three more at once. */
+ * the Swarm Night — three more at once. Endless nights (8+) keep the cap at 24 and
+ * add +3 only on Swarm nights. */
 export function mothCapForNight(night) {
-  return Math.min(8 + night * 2, 24) + (night >= 5 ? 3 : 0) + (night >= NIGHTS_TO_WIN ? 2 : 0);
+  const base = Math.min(8 + night * 2, 24);
+  if (night <= NIGHTS_TO_WIN) return base + (night >= 5 ? 3 : 0) + (night >= NIGHTS_TO_WIN ? 2 : 0);
+  const theme = nightTheme(night).id;
+  return base + (theme === 'swarm' ? 3 : 0);
 }
 
-/** Spawn-interval multiplier by night: night 5 swarms, the last night is the Dawn Rush. */
+/** Spawn-interval multiplier by night: night 5 swarms, the last night is the Dawn Rush.
+ * Endless nights swarm only on Swarm nights. */
 export function spawnScaleForNight(night) {
-  if (night === 5) return 0.8;
-  return night >= NIGHTS_TO_WIN ? 0.85 : 1;
+  if (night <= NIGHTS_TO_WIN) {
+    if (night === 5) return 0.8;
+    return night >= NIGHTS_TO_WIN ? 0.85 : 1;
+  }
+  return nightTheme(night).id === 'swarm' ? 0.8 : 1;
 }
 
 /** What makes this night different from the others — every night has a name, and most
@@ -180,7 +185,12 @@ export function nightTheme(night) {
   if (night === 4) return { id: 'spitters-watch', name: "Spitter's Watch", blurb: 'spitters double — 20% of spawns' };
   if (night === 5) return { id: 'swarm', name: 'Swarm Night', blurb: 'the garden spawns faster' };
   if (night === 6) return { id: 'matriarch-returns', name: 'The Matriarch Returns', blurb: 'she calls her swiftest' };
-  return { id: 'dawn-rush', name: 'Dawn Rush', blurb: 'hold the line until dawn' };
+  if (night === NIGHTS_TO_WIN) return { id: 'dawn-rush', name: 'Dawn Rush', blurb: 'hold the line until dawn' };
+  // Endless nights (8+) cycle the three modifiers, so no two endless nights play the same.
+  const cycle = ['swarm', 'wisp-tide', 'spitters-watch'][(night - NIGHTS_TO_WIN - 1) % 3];
+  if (cycle === 'swarm') return { id: 'swarm', name: 'Swarm Night', blurb: 'the garden spawns faster' };
+  if (cycle === 'wisp-tide') return { id: 'wisp-tide', name: 'Wisp Tide', blurb: 'wisps swarm — 30% of spawns' };
+  return { id: 'spitters-watch', name: "Spitter's Watch", blurb: 'spitters double — 20% of spawns' };
 }
 
 /** Ember Orbit: embers circling the keeper that bite moths (and gloom orbs) on contact. */

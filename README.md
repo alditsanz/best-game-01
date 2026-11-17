@@ -38,7 +38,9 @@ quarter she bursts in fury, firing one ring of gloom orbs in every direction —
 dodge it or shoot the orbs down. Three hearts; a touch costs one, unless a
 Lantern Ward eats the hit. Light all 7
 lanterns and dawn breaks — you win. Lose all hearts and the light goes out.
-After a win, Space keeps playing endless nights.
+After a win, Space keeps playing endless nights: the modifiers keep
+rotating (Swarm, Wisp Tide, Spitter's Watch), a boss guards every 3rd night,
+and the garden never wins for you again — it only gets harder.
 
 Score comes from bursts (with a combo multiplier for quick successive kills),
 shards, and night bonuses; clearing a night without losing a heart pays a
