@@ -2,7 +2,7 @@
 // the HUD and the five screens (title, play, upgrade, paused, game over, victory). The
 // renderer never changes the world; it paints the state it is given.
 
-import { FIELD, FONT, NIGHTS_TO_WIN, PALETTE, PLAYER } from './config.js';
+import { FIELD, FONT, NIGHTS_TO_WIN, PALETTE, PLAYER, nightTheme } from './config.js';
 
 const TAU = Math.PI * 2;
 
@@ -189,10 +189,76 @@ export function createRenderer(canvas) {
     const darter = m.kind === 'darter';
     const wisp = m.kind === 'wisp';
     const splitter = m.kind === 'splitter';
+    const spitter = m.kind === 'spitter';
+    const lantern = m.kind === 'lantern-moth';
     const mote = m.kind === 'mote';
     const elder = m.kind === 'elder';
-    const body = flash ? '#d9ccff' : darter ? PALETTE.darter : wisp ? PALETTE.wisp : splitter ? PALETTE.splitter : mote ? PALETTE.mote : elder ? PALETTE.elder : PALETTE.moth;
-    const wing = flash ? '#efe8ff' : darter ? '#a04a86' : wisp ? PALETTE.wispDark : splitter ? PALETTE.splitterDark : elder ? PALETTE.elderDark : PALETTE.mothDark;
+    const body = flash ? '#d9ccff' : darter ? PALETTE.darter : wisp ? PALETTE.wisp : splitter ? PALETTE.splitter : spitter ? PALETTE.spitter : lantern ? PALETTE.lanternMoth : mote ? PALETTE.mote : elder ? PALETTE.elder : PALETTE.moth;
+    const wing = flash ? '#efe8ff' : darter ? '#a04a86' : wisp ? PALETTE.wispDark : splitter ? PALETTE.splitterDark : spitter ? PALETTE.spitterDark : lantern ? PALETTE.lanternMothDark : elder ? PALETTE.elderDark : PALETTE.mothDark;
+    if (lantern) {
+      // A lantern moth glows gold — the only bright thing in the dark besides the keeper.
+      ctx.save();
+      ctx.translate(m.x, m.y);
+      const pulse = 0.5 + 0.5 * Math.sin(time * 6 + m.wobble);
+      const glow = ctx.createRadialGradient(0, 0, 2, 0, 0, m.radius * 2.4);
+      glow.addColorStop(0, `rgba(255, 217, 77, ${0.5 + pulse * 0.3})`);
+      glow.addColorStop(1, 'rgba(255, 217, 77, 0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(0, 0, m.radius * 2.4, 0, TAU);
+      ctx.fill();
+      const flap = Math.sin(time * 16 + m.wobble * 4) * 0.5;
+      ctx.fillStyle = flash ? '#efe8ff' : wing;
+      for (const side of [-1, 1]) {
+        ctx.save();
+        ctx.rotate(side * (0.5 + flap * 0.4));
+        ctx.beginPath();
+        ctx.ellipse(side * m.radius * 0.9, 0, m.radius * 0.95, m.radius * 0.55, side * 0.5, 0, TAU);
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.fillStyle = flash ? '#d9ccff' : body;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, m.radius * 0.55, m.radius * 0.8, 0, 0, TAU);
+      ctx.fill();
+      dot(0, 0, m.radius * 0.35, '#fff3c4');
+      ctx.restore();
+      return;
+    }
+    if (spitter) {
+      // A spitter is a dark-violet moth with a glowing maw — and when it telegraphs
+      // a shot, the maw flares bright, so the keeper knows to step aside.
+      ctx.save();
+      ctx.translate(m.x, m.y);
+      const telegraph = m.mode === 'telegraph';
+      const pulse = 0.5 + 0.5 * Math.sin(time * (telegraph ? 18 : 5) + m.wobble);
+      const glow = ctx.createRadialGradient(0, 0, 2, 0, 0, m.radius * (telegraph ? 2.6 : 1.8));
+      glow.addColorStop(0, `rgba(199, 125, 255, ${telegraph ? 0.75 : 0.3 + pulse * 0.25})`);
+      glow.addColorStop(1, 'rgba(199, 125, 255, 0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(0, 0, m.radius * 2.2, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = flash ? '#efe8ff' : wing;
+      for (const side of [-1, 1]) {
+        ctx.beginPath();
+        ctx.ellipse(side * m.radius * 0.85, 0, m.radius * 0.9, m.radius * 0.5, side * 0.4, 0, TAU);
+        ctx.fill();
+      }
+      ctx.fillStyle = flash ? '#d9ccff' : body;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, m.radius * 0.6, m.radius * 0.85, 0, 0, TAU);
+      ctx.fill();
+      dot(0, m.radius * 0.25, telegraph ? 6 : 4 + pulse * 2, telegraph ? '#f0d4ff' : PALETTE.gloomOrb);
+      if (m.maxHp > 1) {
+        ctx.fillStyle = '#3a2d6b';
+        ctx.fillRect(-m.radius, -m.radius - 10, m.radius * 2, 4);
+        ctx.fillStyle = '#ff7d9c';
+        ctx.fillRect(-m.radius, -m.radius - 10, (m.radius * 2 * m.hp) / m.maxHp, 4);
+      }
+      ctx.restore();
+      return;
+    }
     if (elder) {
       // An elder is a big pale-violet moth with long antennae and a gold-eyed stare.
       ctx.save();
@@ -390,6 +456,17 @@ export function createRenderer(canvas) {
     }
     for (const m of state.moths) drawMoth(m, time);
     if (state.boss) drawBoss(state.boss, time);
+    for (const g of state.orbs) {
+      const glow = ctx.createRadialGradient(g.x, g.y, 1, g.x, g.y, 20);
+      glow.addColorStop(0, 'rgba(240, 212, 255, 0.9)');
+      glow.addColorStop(0.4, 'rgba(199, 125, 255, 0.7)');
+      glow.addColorStop(1, 'rgba(199, 125, 255, 0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(g.x, g.y, 20, 0, TAU);
+      ctx.fill();
+      dot(g.x, g.y, 6, '#f0d4ff');
+    }
     for (const e of state.embers) {
       const glow = ctx.createRadialGradient(e.x, e.y, 1, e.x, e.y, 14);
       glow.addColorStop(0, 'rgba(255, 243, 196, 0.9)');
@@ -402,6 +479,17 @@ export function createRenderer(canvas) {
       dot(e.x, e.y, 4, PALETTE.emberCore);
     }
     drawPlayer(state, time);
+    for (const o of state.orbiters) {
+      const glow = ctx.createRadialGradient(o.x, o.y, 1, o.x, o.y, 16);
+      glow.addColorStop(0, 'rgba(255, 243, 196, 0.95)');
+      glow.addColorStop(0.4, 'rgba(255, 179, 71, 0.7)');
+      glow.addColorStop(1, 'rgba(255, 179, 71, 0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(o.x, o.y, 16, 0, TAU);
+      ctx.fill();
+      dot(o.x, o.y, 5, PALETTE.emberCore);
+    }
     for (const pt of state.particles) {
       ctx.globalAlpha = Math.max(0, pt.life / pt.maxLife);
       dot(pt.x, pt.y, pt.size, pt.color);
@@ -448,12 +536,21 @@ export function createRenderer(canvas) {
     text(`Score ${state.score}`, 24, 78, PALETTE.text, F(700, 26));
     text(`Night ${Math.min(state.night, NIGHTS_TO_WIN)} / ${NIGHTS_TO_WIN}`, 24, 104, PALETTE.muted, F(600, 18));
     let hy = 134;
+    const theme = nightTheme(state.night);
+    if (state.night < NIGHTS_TO_WIN) {
+      text(`${theme.name} — ${theme.blurb}`, 24, hy, '#c77dff', F(700, 18));
+      hy += 24;
+    }
     if (state.combo > 1) {
       text(`Combo ×${state.combo}`, 24, hy, '#ffb347', F(700, 22));
       hy += 24;
     }
     if (state.surgeTimer > 0) {
       text(`SURGE +1 dmg ${Math.ceil(state.surgeTimer)}s`, 24, hy, '#ff9d5c', F(700, 18));
+      hy += 24;
+    }
+    if (state.orbiters.length > 0) {
+      text(`Orbit ×${state.orbiters.length}`, 24, hy, '#ffd97a', F(700, 18));
       hy += 24;
     }
     if (state.night >= NIGHTS_TO_WIN) {
@@ -508,8 +605,8 @@ export function createRenderer(canvas) {
     text('Keep the last lantern lit through seven nights.', FIELD.width / 2, 228, PALETTE.text, F(600, 22));
     text('Gloom-moths drift in from the dark. Burst them, gather', FIELD.width / 2, 292, PALETTE.muted, F(400, 18));
     text('their light, and light each lantern before dawn.', FIELD.width / 2, 318, PALETTE.muted, F(400, 18));
-    text('Beware the darting wisps and splitting gloom —', FIELD.width / 2, 344, PALETTE.wisp, F(600, 18));
-    text('a Lantern Ward can save a heart.', FIELD.width / 2, 368, PALETTE.wisp, F(600, 18));
+    text('Beware the wisps, the spitting gloom and splitting moths —', FIELD.width / 2, 344, PALETTE.wisp, F(600, 18));
+    text('hunt the golden lantern-moths; an Orbit guards, a Ward saves.', FIELD.width / 2, 368, PALETTE.wisp, F(600, 18));
     text('WASD / arrows — move      Mouse — aim      Click / Space — shoot embers', FIELD.width / 2, 396, PALETTE.text, F(600, 18));
     text('Between nights, pick 1 of 3 upgrades      P — pause      M — mute', FIELD.width / 2, 424, PALETTE.text, F(600, 18));
     text('Press Space or click to begin', FIELD.width / 2, 470, PALETTE.lanternGlow, F(700, 24));

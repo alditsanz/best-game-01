@@ -5,10 +5,10 @@
 //
 // ?seed=N fixes the garden's pattern. ?shot=start|play|upgrade|win (with &seed=N) stages that
 // scene instead of running the loop, paints it twice and sets window.__shotReady for a screenshot.
-import { BEST_KEY, FIELD, NIGHTS_TO_WIN, STEP } from './config.js';
+import { BEST_KEY, FIELD, NIGHTS_TO_WIN, STEP, nightTheme } from './config.js';
 import { createRandom } from './random.js';
 import { createAudio } from './audio.js';
-import { createWorld, EVENT_BOSS, EVENT_BURST, EVENT_ENRAGE, EVENT_HIT, EVENT_NIGHT_CLEAR, EVENT_NOVA, EVENT_OVER, EVENT_PICKUP, EVENT_WARD, EVENT_WIN } from './world.js';
+import { createWorld, EVENT_BOSS, EVENT_BURST, EVENT_ENRAGE, EVENT_HIT, EVENT_NIGHT_CLEAR, EVENT_NOVA, EVENT_OVER, EVENT_PICKUP, EVENT_SPIT, EVENT_WARD, EVENT_WIN } from './world.js';
 import { ACTION_CONFIRM, ACTION_MUTE, ACTION_PAUSE, ACTION_PICK_1, ACTION_PICK_2, ACTION_PICK_3, ACTION_RESTART, createInput } from './input.js';
 import { CARD, createRenderer, SCREEN_OVER, SCREEN_PAUSED, SCREEN_PLAY, SCREEN_TITLE, SCREEN_UPGRADE, SCREEN_WIN } from './render.js';
 import { stageShot } from './shots.js';
@@ -108,9 +108,10 @@ function runGame() {
     audio.upgrade();
     world.resetNight(world.state.night + 1);
     screen = SCREEN_PLAY;
+    const theme = nightTheme(world.state.night);
     announce(world.state.night >= NIGHTS_TO_WIN
       ? `Night ${world.state.night}. The Dawn Rush — hold the line!`
-      : `Night ${world.state.night}. ${world.state.player.hearts} hearts.`);
+      : `Night ${world.state.night}. ${theme.name} — ${theme.blurb}. ${world.state.player.hearts} hearts.`);
   }
 
   function handleActions() {
@@ -183,6 +184,7 @@ function runGame() {
     const events = world.step(STEP, input.direction(), input.aim(), input.firing(), false);
     if (events & EVENT_BURST) audio.burst(world.state.combo);
     if (events & EVENT_NOVA) audio.nova();
+    if (events & EVENT_SPIT) audio.spit();
     if (events & EVENT_WARD) {
       audio.ward();
       announce('The ward holds — no heart lost.');

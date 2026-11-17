@@ -10,16 +10,21 @@ import {
   Darter,
   Elder,
   FIELD,
+  GloomOrb,
+  LanternMoth,
   MOTH,
   Mote,
   NIGHTS_TO_WIN,
   NOVA,
+  ORBIT,
   PLAYER,
   SHARD,
+  Spitter,
   Splitter,
   UPGRADES,
   Wisp,
   mothCapForNight,
+  nightTheme,
   quotaForNight,
   spawnScaleForNight,
 } from './config.js';
@@ -34,6 +39,7 @@ export const EVENT_BURST = 64;
 export const EVENT_NOVA = 128;
 export const EVENT_ENRAGE = 256;
 export const EVENT_WARD = 512;
+export const EVENT_SPIT = 1024;
 
 export const KIND_MOTH = 'moth';
 export const KIND_DARTER = 'darter';
@@ -41,6 +47,8 @@ export const KIND_WISP = 'wisp';
 export const KIND_SPLITTER = 'splitter';
 export const KIND_MOTE = 'mote';
 export const KIND_ELDER = 'elder';
+export const KIND_SPITTER = 'spitter';
+export const KIND_LANTERN_MOTH = 'lantern-moth';
 
 const TAU = Math.PI * 2;
 
@@ -58,6 +66,7 @@ function freshUpgrades() {
     comboWindow: COMBO.window,
     comboMax: COMBO.max,
     ward: 0,
+    orbit: 0,
   };
 }
 
@@ -67,6 +76,13 @@ export function createWorld(random) {
     upgrades: freshUpgrades(),
     embers: [],
     moths: [],
+    orbs: [],
+    orbiters: [],
+    orbitAngle: 0,
+    spitterShots: 0,
+    orbsShotDown: 0,
+    orbHits: 0,
+    orbitHits: 0,
     shards: [],
     particles: [],
     texts: [],
@@ -103,6 +119,7 @@ export function createWorld(random) {
     state.nightCleared = false;
     state.ward = state.upgrades.ward;
     state.moths.length = 0;
+    state.orbs.length = 0;
     state.shards.length = 0;
     state.embers.length = 0;
   }
@@ -117,6 +134,13 @@ export function createWorld(random) {
     state.upgrades = freshUpgrades();
     state.embers.length = 0;
     state.moths.length = 0;
+    state.orbs.length = 0;
+    state.orbiters.length = 0;
+    state.orbitAngle = 0;
+    state.spitterShots = 0;
+    state.orbsShotDown = 0;
+    state.orbHits = 0;
+    state.orbitHits = 0;
     state.shards.length = 0;
     state.particles.length = 0;
     state.texts.length = 0;
@@ -145,9 +169,9 @@ export function createWorld(random) {
     return { x: FIELD.width + m, y: random.range(m, FIELD.height - m) };
   }
 
-  /** One moth of any kind, at (x, y); boss-spawned moths pass a fixed wobbleSpeed, no edge pause, and 1 hp. Wisps, splitters, motes and elders never spawn from the boss. */
+  /** One moth of any kind, at (x, y); boss-spawned moths pass a fixed wobbleSpeed, no edge pause, and 1 hp. Wisps, splitters, spitters, lantern moths, motes and elders never spawn from the boss. */
   function makeMoth(kind, x, y, wobbleSpeed, pause, hp) {
-    const cfg = kind === KIND_DARTER ? Darter : kind === KIND_WISP ? Wisp : kind === KIND_SPLITTER ? Splitter : kind === KIND_MOTE ? Mote : kind === KIND_ELDER ? Elder : MOTH;
+    const cfg = kind === KIND_DARTER ? Darter : kind === KIND_WISP ? Wisp : kind === KIND_SPLITTER ? Splitter : kind === KIND_SPITTER ? Spitter : kind === KIND_LANTERN_MOTH ? LanternMoth : kind === KIND_MOTE ? Mote : kind === KIND_ELDER ? Elder : MOTH;
     const scaledHp = kind === KIND_MOTH ? Math.max(1, Math.round(MOTH.hp + MOTH.hpPerNight * (state.night - 1))) : cfg.hp;
     hp = hp ?? scaledHp;
     return {
@@ -158,6 +182,7 @@ export function createWorld(random) {
       wobbleSpeed: wobbleSpeed ?? random.range(1.5, 3),
       mode: 'drift',
       modeTimer: kind === KIND_DARTER ? Darter.aimTime : 0,
+      fireTimer: kind === KIND_SPITTER ? random.range(1.2, Spitter.fireInterval) : 0,
       lx: 0, ly: 0, flash: 0,
     };
   }
@@ -165,14 +190,20 @@ export function createWorld(random) {
   function spawnMoth() {
     const p = edgePoint();
     const r = random.next();
-    // Night 1 keeps the old 30% darter share. From night 2, 18% of spawns are
-    // wisps and 30% of the rest are darters; from night 3, 12% are splitters;
-    // from night 5, 10% of the rest are elders — moths stay the majority.
+    // Night 1 keeps the old 30% darter share. From night 2, 6% of spawns are
+    // lantern moths and wisps are 18% — 30% on the Wisp Tide (night 2) — and
+    // 30% of the rest are darters; from night 3, 12% are splitters and 10%
+    // are spitters — 20% on Spitter's Watch (night 4); from night 5, 10% of
+    // the rest are elders — moths stay the majority.
     const splitterAt = state.night >= 3 ? Splitter.spawnShare : 0;
-    const wispAt = splitterAt + (state.night >= 2 ? Wisp.spawnShare * (1 - splitterAt) : 0);
+    const spitterShare = state.night === 4 ? 0.20 : Spitter.spawnShare;
+    const spitterAt = splitterAt + (state.night >= 3 ? spitterShare * (1 - splitterAt) : 0);
+    const lanternAt = spitterAt + (state.night >= 2 ? LanternMoth.spawnShare * (1 - spitterAt) : 0);
+    const wispShare = nightTheme(state.night).id === 'wisp-tide' ? 0.30 : Wisp.spawnShare;
+    const wispAt = lanternAt + (state.night >= 2 ? wispShare * (1 - lanternAt) : 0);
     const elderAt = wispAt + (state.night >= 5 ? Elder.spawnShare * (1 - wispAt) : 0);
     const darterAt = state.night >= 2 ? elderAt + (1 - elderAt) * 0.3 : 0.3;
-    const kind = r < splitterAt ? KIND_SPLITTER : r < wispAt ? KIND_WISP : r < elderAt ? KIND_ELDER : r < darterAt ? KIND_DARTER : KIND_MOTH;
+    const kind = r < splitterAt ? KIND_SPLITTER : r < spitterAt ? KIND_SPITTER : r < lanternAt ? KIND_LANTERN_MOTH : r < wispAt ? KIND_WISP : r < elderAt ? KIND_ELDER : r < darterAt ? KIND_DARTER : KIND_MOTH;
     state.moths.push(makeMoth(kind, p.x, p.y));
   }
 
@@ -245,11 +276,13 @@ export function createWorld(random) {
     const darter = moth.kind === KIND_DARTER;
     const wisp = moth.kind === KIND_WISP;
     const splitter = moth.kind === KIND_SPLITTER;
+    const spitter = moth.kind === KIND_SPITTER;
+    const lantern = moth.kind === KIND_LANTERN_MOTH;
     const mote = moth.kind === KIND_MOTE;
     const elder = moth.kind === KIND_ELDER;
-    const color = darter ? '#d86bb0' : wisp ? '#7fe0c3' : splitter ? '#c98a4b' : mote ? '#ffd27a' : elder ? '#d9a7ff' : '#8f7bd8';
-    burst(moth.x, moth.y, color, darter ? 18 : wisp ? 8 : splitter ? 22 : elder ? 20 : 6, 180);
-    dropShards(moth.x, moth.y, darter ? Darter.shards : wisp ? Wisp.shards : splitter ? Splitter.shards : mote ? Mote.shards : elder ? Elder.shards : MOTH.shards);
+    const color = darter ? '#d86bb0' : wisp ? '#7fe0c3' : splitter ? '#c98a4b' : spitter ? '#9b6bd8' : lantern ? '#ffd94d' : mote ? '#ffd27a' : elder ? '#d9a7ff' : '#8f7bd8';
+    burst(moth.x, moth.y, color, darter ? 18 : wisp ? 8 : splitter ? 22 : spitter ? 16 : lantern ? 14 : elder ? 20 : 6, 180);
+    dropShards(moth.x, moth.y, darter ? Darter.shards : wisp ? Wisp.shards : splitter ? Splitter.shards : spitter ? Spitter.shards : lantern ? LanternMoth.shards : mote ? Mote.shards : elder ? Elder.shards : MOTH.shards);
     addText(moth.x, moth.y - 18, `+${gained}`, '#ffe9a8');
     if (splitter) {
       // A burst splitter tears into two fast motes — kill it at range, or deal with both.
@@ -286,6 +319,96 @@ export function createWorld(random) {
     state.novaTimer = Math.max(NOVA.minCooldown, NOVA.cooldown - NOVA.cooldownPerLevel * (u.nova - 1));
     burst(p.x, p.y, '#ffb347', 14, 200);
     return events | EVENT_NOVA;
+  }
+
+  /** A spitter looses one gloom orb at the keeper — slow, glowing, shootable. */
+  function fireOrb(m, events) {
+    state.orbs.push({
+      x: m.x + m.lx * (m.radius + 10),
+      y: m.y + m.ly * (m.radius + 10),
+      vx: m.lx * GloomOrb.speed,
+      vy: m.ly * GloomOrb.speed,
+      life: GloomOrb.life,
+    });
+    state.spitterShots += 1;
+    return events | EVENT_SPIT;
+  }
+
+  function stepOrbs(dt, events) {
+    const p = state.player;
+    for (let i = state.orbs.length - 1; i >= 0; i -= 1) {
+      const o = state.orbs[i];
+      o.x += o.vx * dt;
+      o.y += o.vy * dt;
+      o.life -= dt;
+      const dx = o.x - p.x;
+      const dy = o.y - p.y;
+      const rr = GloomOrb.radius + PLAYER.radius;
+      if (dx * dx + dy * dy < rr * rr) {
+        state.orbs.splice(i, 1);
+        state.orbHits += 1;
+        burst(o.x, o.y, '#c77dff', 10, 160);
+        events = hurtPlayer(events);
+        continue;
+      }
+      if (o.life <= 0 || o.x < -30 || o.x > FIELD.width + 30 || o.y < -30 || o.y > FIELD.height + 30) {
+        state.orbs.splice(i, 1);
+      }
+    }
+    return events;
+  }
+
+  /** Ember Orbit: the circling embers bite moths (and gloom orbs) they touch. */
+  function stepOrbit(dt, events) {
+    const u = state.upgrades;
+    const want = u.orbit > 0 ? u.orbit + 1 : 0;
+    while (state.orbiters.length < want) state.orbiters.push({ x: 0, y: 0, cd: 0 });
+    while (state.orbiters.length > want) state.orbiters.pop();
+    if (want === 0) return events;
+    state.orbitAngle += ORBIT.turnSpeed * dt;
+    const p = state.player;
+    for (let i = 0; i < state.orbiters.length; i += 1) {
+      const o = state.orbiters[i];
+      const a = state.orbitAngle + (i / state.orbiters.length) * TAU;
+      o.x = p.x + Math.cos(a) * ORBIT.radius;
+      o.y = p.y + Math.sin(a) * ORBIT.radius;
+      o.cd = Math.max(0, o.cd - dt);
+      if (o.cd > 0) continue;
+      let hit = false;
+      for (let j = state.moths.length - 1; j >= 0; j -= 1) {
+        const m = state.moths[j];
+        const dx = o.x - m.x;
+        const dy = o.y - m.y;
+        const rr = 8 + m.radius;
+        if (dx * dx + dy * dy < rr * rr) {
+          m.hp -= ORBIT.damage;
+          m.flash = 0.12;
+          burst(o.x, o.y, '#ffb347', 4, 120);
+          state.orbitHits += 1;
+          if (m.hp <= 0) events = killMoth(j, events);
+          hit = true;
+          break;
+        }
+      }
+      if (!hit) {
+        for (let j = state.orbs.length - 1; j >= 0; j -= 1) {
+          const g = state.orbs[j];
+          const dx = o.x - g.x;
+          const dy = o.y - g.y;
+          const rr = 8 + GloomOrb.radius;
+          if (dx * dx + dy * dy < rr * rr) {
+            state.orbs.splice(j, 1);
+            state.orbsShotDown += 1;
+            state.orbitHits += 1;
+            burst(g.x, g.y, '#c77dff', 6, 140);
+            hit = true;
+            break;
+          }
+        }
+      }
+      if (hit) o.cd = ORBIT.hitCooldown;
+    }
+    return events;
   }
 
   function hurtPlayer(events) {
@@ -338,6 +461,22 @@ export function createWorld(random) {
       e.x += e.vx * dt;
       e.y += e.vy * dt;
       let dead = e.x < -20 || e.x > FIELD.width + 20 || e.y < -20 || e.y > FIELD.height + 20;
+      if (!dead) {
+        // Gloom orbs can be shot down — an ember that meets one bursts it.
+        for (let j = state.orbs.length - 1; j >= 0; j -= 1) {
+          const g = state.orbs[j];
+          const rr = e.x - g.x;
+          const ry = e.y - g.y;
+          if (rr * rr + ry * ry < (PLAYER.emberRadius + GloomOrb.radius) * (PLAYER.emberRadius + GloomOrb.radius)) {
+            state.orbs.splice(j, 1);
+            state.orbsShotDown += 1;
+            burst(g.x, g.y, '#c77dff', 6, 140);
+            if (e.pierce > 0) e.pierce -= 1;
+            else dead = true;
+            break;
+          }
+        }
+      }
       if (!dead) {
         for (let j = state.moths.length - 1; j >= 0; j -= 1) {
           const m = state.moths[j];
@@ -399,6 +538,49 @@ export function createWorld(random) {
         const weave = Math.sin(m.wobble * 2.4) * 120;
         m.x += ((dx / d) * m.speed + px * weave) * dt;
         m.y += ((dy / d) * m.speed + py * weave) * dt;
+      } else if (m.kind === KIND_LANTERN_MOTH) {
+        // A lantern moth flees: inside its range it runs from the keeper, faster
+        // than a moth but slower than the keeper — chase it down for its 5 shards.
+        if (d < LanternMoth.fleeRange) {
+          m.x -= (dx / d) * m.speed * dt;
+          m.y -= (dy / d) * m.speed * dt;
+        } else {
+          m.x += Math.cos(m.wobble) * m.speed * 0.3 * dt;
+          m.y += Math.sin(m.wobble) * m.speed * 0.3 * dt;
+        }
+        // It never sits still at the edge: keep it inside the garden.
+        m.x = Math.min(FIELD.width - m.radius, Math.max(m.radius, m.x));
+        m.y = Math.min(FIELD.height - m.radius, Math.max(m.radius, m.y));
+      } else if (m.kind === KIND_SPITTER) {
+        // A spitter closes to its hold range, strafes, then telegraphs a shot:
+        // it aims where the keeper is when the glow starts, so stepping aside dodges it.
+        // The fire timer runs while it approaches too — a spitter that is left alone
+        // will shoot from the dark, not only once it has arrived.
+        if (m.mode === 'telegraph') {
+          m.modeTimer -= dt;
+          if (m.modeTimer <= 0) {
+            m.mode = 'hold';
+            m.fireTimer = Spitter.fireInterval;
+            events = fireOrb(m, events);
+          }
+        } else {
+          if (d > Spitter.holdRange) {
+            m.x += (dx / d) * m.speed * dt;
+            m.y += (dy / d) * m.speed * dt;
+          } else {
+            const px = -dy / d;
+            const py = dx / d;
+            m.x += px * Math.sin(m.wobble * 1.4) * 46 * dt;
+            m.y += py * Math.sin(m.wobble * 1.4) * 46 * dt;
+          }
+          m.fireTimer -= dt;
+          if (m.fireTimer <= 0) {
+            m.mode = 'telegraph';
+            m.modeTimer = Spitter.telegraph;
+            m.lx = dx / d;
+            m.ly = dy / d;
+          }
+        }
       } else if (m.kind === KIND_MOTE) {
         // A mote darts straight at the keeper, jittering — small, fast, no pause.
         m.x += (dx / d) * m.speed * dt + Math.cos(m.wobble) * 60 * dt;
@@ -459,7 +641,9 @@ export function createWorld(random) {
     if (b.spawnTimer <= 0 && state.moths.length < mothCapForNight(state.night)) {
       b.spawnTimer = b.spawnInterval;
       const a = random.range(0, TAU);
-      state.moths.push(makeMoth(KIND_MOTH, b.x + Math.cos(a) * (b.radius + 20), b.y + Math.sin(a) * (b.radius + 20), 2, 0, 1));
+      // On night 6 the Matriarch calls her swiftest: darters, not moths.
+      const spawnKind = state.night >= 6 ? KIND_DARTER : KIND_MOTH;
+      state.moths.push(makeMoth(spawnKind, b.x + Math.cos(a) * (b.radius + 20), b.y + Math.sin(a) * (b.radius + 20), 2, 0, 1));
     }
     const rr = b.x - p.x;
     const ry = b.y - p.y;
@@ -592,6 +776,8 @@ export function createWorld(random) {
     events = stepEmbers(dt, events);
     events = stepMoths(dt, events);
     events = stepBoss(dt, events);
+    events = stepOrbs(dt, events);
+    events = stepOrbit(dt, events);
     events = stepShards(dt, events);
     stepParticles(dt);
 

@@ -63,6 +63,21 @@ function autopilot(state, sloppy, spareBoss) {
       my += (FIELD.height / 2 - p.y) / 400;
     }
   }
+  // Step aside from a close gloom orb — it is slow, but it still costs a heart.
+  let orb = null;
+  let orbD = Infinity;
+  for (const g of state.orbs) {
+    const d = (g.x - p.x) * (g.x - p.x) + (g.y - p.y) * (g.y - p.y);
+    if (d < orbD) {
+      orbD = d;
+      orb = g;
+    }
+  }
+  if (orb && Math.sqrt(orbD) < 170) {
+    const od = Math.sqrt(orbD) || 1;
+    mx += ((p.x - orb.x) / od) * 1.6;
+    my += ((p.y - orb.y) / od) * 1.6;
+  }
   const len = Math.hypot(mx, my) || 1;
   const firing = sloppy ? foe !== null && danger < 320 : foe !== null;
   return { move: { x: mx / len, y: my / len }, aim, firing };

@@ -16,17 +16,25 @@ them with embers, gather their light, and light all seven lanterns before dawn.
 - **P / Esc** — pause · **M** — mute · **R** — restart
 
 Each night has a shard quota: fill the lantern meter and the next lantern
-lights. Between nights, choose 1 of 3 blessings (faster embers, tri-flame,
-piercing embers, swift boots, wide net, heavy embers, warm heart, Ember Nova,
-Ember Echo, Lantern Ward). From night 2, quick darting Gloom Wisps weave in
-among the moths and darters; from night 3, bloated Gloom Splitters burst into
-two fast motes when killed — shoot them at range or deal with both; from
-night 5, slow old Elders drift in, tough at 3 hp but heavy with 4 shards.
-Every 3rd night a Gloom Matriarch boss guards the lantern — and below half
-health she enrages, moving faster and calling moths sooner. Three hearts; a
-touch costs one, unless a Lantern Ward eats the hit. Light all 7 lanterns and
-dawn breaks — you win. Lose all hearts and the light goes out. After a win,
-Space keeps playing endless nights.
+lights — and every night has its own name and character. Night 1 is the First
+Dark; night 2 the Wisp Tide, when nearly a third of the garden is wisps, and
+golden lantern-moths start appearing — they flee from you, so chase them down
+for their 5 shards; night 3 the Matriarch Wakes; night 4 is Spitter's Watch,
+when spitters double; night 5 the Swarm Night, the garden spawning faster with
+more moths at once; night 6 the Matriarch Returns, calling darters instead of
+moths; night 7 the Dawn Rush. Between nights, choose 1 of 3 blessings (faster
+embers, tri-flame, piercing embers, swift boots, wide net, heavy embers, warm
+heart, Ember Nova, Ember Echo, Lantern Ward, Ember Orbit). From night 2, quick
+darting Gloom Wisps weave in among the moths and darters; from night 3, bloated
+Gloom Splitters burst into two fast motes when killed — shoot them at range or
+deal with both — and dark-violet Gloom Spitters hold at range and spit slow
+gloom orbs at you, telegraphing each shot with a flare: step aside, or shoot
+the orb down; from night 5, slow old Elders drift in, tough at 3 hp but heavy
+with 4 shards. Every 3rd night a Gloom Matriarch boss guards the lantern — and
+below half health she enrages, moving faster and calling moths sooner. Three
+hearts; a touch costs one, unless a Lantern Ward eats the hit. Light all 7
+lanterns and dawn breaks — you win. Lose all hearts and the light goes out.
+After a win, Space keeps playing endless nights.
 
 Score comes from bursts (with a combo multiplier for quick successive kills),
 shards, and night bonuses; the best score is kept in the browser. Hold the
@@ -36,13 +44,15 @@ moth cap rises, so hold the line until dawn.
 
 ## The game
 
-- A complete loop: title → 7 nights with escalating moths, darters, wisps,
-  splitters, motes and elders → enraging boss nights → 10 upgrade choices →
-  victory or game-over screen → restart / endless. The last night is the
-  Dawn Rush, a faster finale.
+- A complete loop: title → 7 named nights with escalating moths, darters,
+  wisps, splitters, motes, elders, spitters and fleeing lantern-moths →
+  an enraging boss who changes what she summons → 11 upgrade choices →
+  victory or game-over screen → restart / endless. Each night has its own
+  name and twist: First Dark, Wisp Tide, the Matriarch Wakes, Spitter's
+  Watch, Swarm Night, the Matriarch Returns, and the Dawn Rush finale.
 - Original art drawn in code (no images) and original sound synthesised with
   WebAudio (no audio files): shoot, burst, pickup, hurt, lantern, upgrade,
-  boss, nova, ward, victory and defeat cues over a soft ambient pad.
+  boss, nova, ward, spit, victory and defeat cues over a soft ambient pad.
 - No libraries, no network, no build step: plain static files under `game/`,
   playable offline in a desktop browser from `game/index.html`.
 

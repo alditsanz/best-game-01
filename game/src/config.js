@@ -69,6 +69,40 @@ export const Splitter = {
   spawnShare: 0.12,
 };
 
+/** A spitter is a slow, bloated moth that stops at range and spits slow gloom orbs at the keeper — the first enemy that shoots back. Orbs can be shot down or dodged. */
+export const Spitter = {
+  radius: 14,
+  speed: 80,
+  hp: 2,
+  shards: 3,
+  /** Share of spawns that are spitters, from night 3 on. */
+  spawnShare: 0.10,
+  /** It holds at about this distance from the keeper before it starts spitting. */
+  holdRange: 280,
+  /** Seconds between shots, and the telegraph before each one. */
+  fireInterval: 2.8,
+  telegraph: 0.4,
+};
+
+/** A lantern moth swallowed a shard of the lantern: it glows gold, it flees from the
+ * keeper, and bursting it drops 5 shards. Hunt it — it will not come to you. */
+export const LanternMoth = {
+  radius: 11,
+  speed: 190,
+  hp: 1,
+  shards: 5,
+  /** Share of spawns that are lantern moths, from night 2 on. */
+  spawnShare: 0.06,
+  /** Inside this range it runs from the keeper instead of drifting. */
+  fleeRange: 260,
+};
+
+/** A gloom orb: what a spitter spits. Slow, glowing, one hit — shoot it down or step aside. */
+export const GloomOrb = {
+  radius: 8,
+  speed: 150,
+  life: 7,
+};
 /** A mote is what a splitter leaves behind: tiny, fast, 1 hp — and it still bites. */
 export const Mote = {
   radius: 7,
@@ -118,15 +152,41 @@ export function quotaForNight(night) {
   return 14 + (night - 1) * 8;
 }
 
-/** Moths alive at once, by night: the garden gets busier as the nights pass. */
+/** Moths alive at once, by night: the garden gets busier as the nights pass. Night 5 is
+ * the Swarm Night — three more at once. */
 export function mothCapForNight(night) {
-  return Math.min(8 + night * 2, 24) + (night >= NIGHTS_TO_WIN ? 2 : 0);
+  return Math.min(8 + night * 2, 24) + (night >= 5 ? 3 : 0) + (night >= NIGHTS_TO_WIN ? 2 : 0);
 }
 
-/** Spawn-interval multiplier by night: the last night is the Dawn Rush — faster. */
+/** Spawn-interval multiplier by night: night 5 swarms, the last night is the Dawn Rush. */
 export function spawnScaleForNight(night) {
+  if (night === 5) return 0.8;
   return night >= NIGHTS_TO_WIN ? 0.85 : 1;
 }
+
+/** What makes this night different from the others — every night has a name, and most
+ * have a real spawn effect, not just a label. Night 2 is the Wisp Tide (wisps are
+ * 30% of spawns, not 18%); night 4 is Spitter's Watch (spitters are 20% of spawns);
+ * night 5 is the Swarm Night (faster spawns, higher cap — see the two functions
+ * above); night 6 the Matriarch calls her swiftest (she spawns darters, not moths);
+ * night 7 is the Dawn Rush. */
+export function nightTheme(night) {
+  if (night === 1) return { id: 'first-dark', name: 'First Dark', blurb: 'the garden wakes' };
+  if (night === 2) return { id: 'wisp-tide', name: 'Wisp Tide', blurb: 'wisps swarm — 30% of spawns' };
+  if (night === 3) return { id: 'matriarch-wakes', name: 'The Matriarch Wakes', blurb: 'she guards the lantern' };
+  if (night === 4) return { id: 'spitters-watch', name: "Spitter's Watch", blurb: 'spitters double — 20% of spawns' };
+  if (night === 5) return { id: 'swarm', name: 'Swarm Night', blurb: 'the garden spawns faster' };
+  if (night === 6) return { id: 'matriarch-returns', name: 'The Matriarch Returns', blurb: 'she calls her swiftest' };
+  return { id: 'dawn-rush', name: 'Dawn Rush', blurb: 'hold the line until dawn' };
+}
+
+/** Ember Orbit: embers circling the keeper that bite moths (and gloom orbs) on contact. */
+export const ORBIT = {
+  radius: 120,
+  turnSpeed: 2.6,
+  damage: 1,
+  hitCooldown: 0.5,
+};
 
 export const COMBO = {
   window: 2.5,
@@ -193,6 +253,12 @@ export const UPGRADES = [
     apply: (u) => { u.ward += 1; },
   },
   {
+    id: 'ember-orbit',
+    title: 'Ember Orbit',
+    blurb: 'Embers circle you, biting moths — and gloom orbs — on contact.',
+    apply: (u) => { u.orbit += 1; },
+  },
+  {
     id: 'warm-heart',
     title: 'Warm Heart',
     blurb: 'Mend one heart now, and carry one more.',
@@ -217,6 +283,11 @@ export const PALETTE = {
   wispDark: '#3fae8c',
   splitter: '#c98a4b',
   splitterDark: '#8a5a28',
+  spitter: '#9b6bd8',
+  spitterDark: '#6b3fb0',
+  gloomOrb: '#c77dff',
+  lanternMoth: '#ffd94d',
+  lanternMothDark: '#c9a227',
   mote: '#ffd27a',
   elder: '#d9a7ff',
   elderDark: '#a06fd0',
