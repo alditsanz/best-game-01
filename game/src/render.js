@@ -684,6 +684,12 @@ export function createRenderer(canvas) {
     ctx.textAlign = 'left';
   }
 
+  /** Ember accuracy: hits over embers fired, as a whole percent (100 when nothing fired). */
+  function accuracy(state) {
+    if (state.shotsFired <= 0) return 100;
+    return Math.round((100 * state.shotsHit) / state.shotsFired);
+  }
+
   function drawOver(state, best) {
     drawWorld(state, 0);
     dim();
@@ -693,6 +699,7 @@ export function createRenderer(canvas) {
     text(`Night ${state.night} · ${state.kills} moths burst`, FIELD.width / 2, 306, PALETTE.text, F(600, 22));
     text(`Score ${state.score}`, FIELD.width / 2, 356, PALETTE.text, F(700, 30));
     text(`Best ${best}`, FIELD.width / 2, 392, PALETTE.muted, F(600, 18));
+    text(`Accuracy ${accuracy(state)}% · ${state.shotsFired} embers fired`, FIELD.width / 2, 424, PALETTE.muted, F(600, 18));
     text('Press R or click to try again', FIELD.width / 2, 462, PALETTE.lanternGlow, F(700, 22));
     ctx.textAlign = 'left';
   }
@@ -706,6 +713,7 @@ export function createRenderer(canvas) {
     text('Seven lanterns lit. The garden is yours again.', FIELD.width / 2, 266, PALETTE.text, F(600, 22));
     text(`Score ${state.score} · ${state.kills} moths burst`, FIELD.width / 2, 330, PALETTE.text, F(700, 30));
     text(`Best ${best}`, FIELD.width / 2, 366, PALETTE.muted, F(600, 18));
+    text(`Accuracy ${accuracy(state)}% · ${state.shotsFired} embers fired`, FIELD.width / 2, 400, PALETTE.muted, F(600, 18));
     text('Press R or click to play again', FIELD.width / 2, 462, PALETTE.lanternGlow, F(700, 22));
     text('Keep playing? Press Space for endless nights', FIELD.width / 2, 496, PALETTE.lanternGlow, F(700, 22));
     ctx.textAlign = 'left';

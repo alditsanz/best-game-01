@@ -90,6 +90,8 @@ export function createWorld(random) {
     orbitHits: 0,
     chainHits: 0,
     chainFx: [],
+    shotsFired: 0,
+    shotsHit: 0,
     shards: [],
     particles: [],
     texts: [],
@@ -157,6 +159,8 @@ export function createWorld(random) {
     state.orbitHits = 0;
     state.chainHits = 0;
     state.chainFx.length = 0;
+    state.shotsFired = 0;
+    state.shotsHit = 0;
     state.shards.length = 0;
     state.particles.length = 0;
     state.texts.length = 0;
@@ -364,6 +368,7 @@ export function createWorld(random) {
         damage: emberDamage(),
       });
     }
+    state.shotsFired += n;
     state.novaFires += 1;
     state.novaTimer = Math.max(NOVA.minCooldown, NOVA.cooldown - NOVA.cooldownPerLevel * (u.nova - 1));
     burst(p.x, p.y, '#ffb347', 14, 200);
@@ -555,6 +560,7 @@ export function createWorld(random) {
         damage: emberDamage(),
       });
     }
+    state.shotsFired += n;
     burst(p.x + Math.cos(base) * 22, p.y + Math.sin(base) * 22, '#ffb347', 3, 90);
   }
 
@@ -574,6 +580,7 @@ export function createWorld(random) {
           if (rr * rr + ry * ry < (PLAYER.emberRadius + GloomOrb.radius) * (PLAYER.emberRadius + GloomOrb.radius)) {
             state.orbs.splice(j, 1);
             state.orbsShotDown += 1;
+            state.shotsHit += 1;
             burst(g.x, g.y, '#c77dff', 6, 140);
             if (e.pierce > 0) e.pierce -= 1;
             else dead = true;
@@ -589,6 +596,7 @@ export function createWorld(random) {
           if (rr * rr + ry * ry < (PLAYER.emberRadius + m.radius) * (PLAYER.emberRadius + m.radius)) {
             m.hp -= e.damage;
             m.flash = 0.12;
+            state.shotsHit += 1;
             burst(e.x, e.y, '#ffb347', 4, 120);
             if (m.hp <= 0) events = killMoth(j, events);
             if (e.pierce > 0) e.pierce -= 1;
@@ -604,6 +612,7 @@ export function createWorld(random) {
         if (rr * rr + ry * ry < (PLAYER.emberRadius + b.radius) * (PLAYER.emberRadius + b.radius)) {
           b.hp -= e.damage;
           b.flash = 0.12;
+          state.shotsHit += 1;
           burst(e.x, e.y, '#ffb347', 5, 140);
           if (b.hp <= 0) events = killBoss(events);
           if (e.pierce > 0) e.pierce -= 1;

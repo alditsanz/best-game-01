@@ -44,7 +44,8 @@ and the garden never wins for you again — it only gets harder.
 
 Score comes from bursts (with a combo multiplier for quick successive kills),
 shards, and night bonuses; clearing a night without losing a heart pays a
-Flawless +250. The best score is kept in the browser. Hold the
+Flawless +250. The victory and game-over screens show your ember accuracy —
+hits over embers fired. The best score is kept in the browser. Hold the
 combo at its max and the lantern surges — embers hit +1 harder for a few
 seconds. The last night is the Dawn Rush: the garden spawns faster and the
 moth cap rises, so hold the line until dawn.
