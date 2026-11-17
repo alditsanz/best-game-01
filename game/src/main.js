@@ -5,12 +5,12 @@
 //
 // ?seed=N fixes the garden's pattern. ?shot=start|play|upgrade|win (with &seed=N) stages that
 // scene instead of running the loop, paints it twice and sets window.__shotReady for a screenshot.
-import { BEST_KEY, STEP } from './config.js';
+import { BEST_KEY, FIELD, STEP } from './config.js';
 import { createRandom } from './random.js';
 import { createAudio } from './audio.js';
 import { createWorld, EVENT_BOSS, EVENT_BURST, EVENT_HIT, EVENT_NIGHT_CLEAR, EVENT_OVER, EVENT_PICKUP, EVENT_WIN } from './world.js';
 import { ACTION_CONFIRM, ACTION_MUTE, ACTION_PAUSE, ACTION_PICK_1, ACTION_PICK_2, ACTION_PICK_3, ACTION_RESTART, createInput } from './input.js';
-import { createRenderer, SCREEN_OVER, SCREEN_PAUSED, SCREEN_PLAY, SCREEN_TITLE, SCREEN_UPGRADE, SCREEN_WIN } from './render.js';
+import { CARD, createRenderer, SCREEN_OVER, SCREEN_PAUSED, SCREEN_PLAY, SCREEN_TITLE, SCREEN_UPGRADE, SCREEN_WIN } from './render.js';
 import { stageShot } from './shots.js';
 
 /** The longest frame the loop catches up on; a longer stall (a hidden tab) is dropped, not replayed. */
@@ -159,14 +159,12 @@ function runGame() {
       // A click on a card picks it: cards sit in a row across the middle.
       const aim = input.aim();
       const cards = world.state.offer;
-      const cw = 300;
-      const gap = 28;
+      const { w: cw, h: ch, gap, y: y0 } = CARD;
       const total = cards.length * cw + (cards.length - 1) * gap;
-      const x0 = 640 - total / 2;
-      const y0 = 210;
+      const x0 = FIELD.width / 2 - total / 2;
       for (let i = 0; i < cards.length; i += 1) {
         const x = x0 + i * (cw + gap);
-        if (aim.x >= x && aim.x <= x + cw && aim.y >= y0 && aim.y <= y0 + 240) {
+        if (aim.x >= x && aim.x <= x + cw && aim.y >= y0 && aim.y <= y0 + ch) {
           pickUpgrade(i);
           return;
         }

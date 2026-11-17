@@ -4,12 +4,20 @@
 
 import { FIELD, FONT, NIGHTS_TO_WIN, PALETTE, PLAYER } from './config.js';
 
+const TAU = Math.PI * 2;
+
+/** Font string: weight + px size in the game's one font stack. */
+const F = (w, s) => `${w} ${s}px ${FONT}`;
+
 export const SCREEN_TITLE = 'title';
 export const SCREEN_PLAY = 'play';
 export const SCREEN_UPGRADE = 'upgrade';
 export const SCREEN_PAUSED = 'paused';
 export const SCREEN_OVER = 'over';
 export const SCREEN_WIN = 'win';
+
+/** Upgrade-card geometry (w/h/gap/top), shared by the upgrade screen and main.js's click picker. */
+export const CARD = { w: 300, h: 240, gap: 28, y: 210 };
 
 function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
@@ -45,7 +53,7 @@ function drawLantern(ctx, x, y, scale, lit, flicker) {
     glow.addColorStop(1, 'rgba(255, 217, 122, 0)');
     ctx.fillStyle = glow;
     ctx.beginPath();
-    ctx.arc(0, 0, 52, 0, Math.PI * 2);
+    ctx.arc(0, 0, 52, 0, TAU);
     ctx.fill();
   }
   ctx.fillStyle = '#3a2d6b';
@@ -79,13 +87,34 @@ export function createRenderer(canvas) {
     });
   }
 
+  /** One line of text: colour + font + fillText (alignment stays the caller's). */
+  function text(str, x, y, color, font) {
+    ctx.fillStyle = color;
+    ctx.font = font;
+    ctx.fillText(str, x, y);
+  }
+
+  /** One filled circle. */
+  function dot(x, y, r, color) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, TAU);
+    ctx.fill();
+  }
+
+  /** One filled rounded rectangle. */
+  function fillRound(x, y, w, h, r, color) {
+    ctx.fillStyle = color;
+    roundRect(ctx, x, y, w, h, r);
+    ctx.fill();
+  }
+
   function fitCanvas() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const w = canvas.clientWidth || FIELD.width;
     const h = canvas.clientHeight || FIELD.height;
     canvas.width = Math.round(w * dpr);
     canvas.height = Math.round(h * dpr);
-    return dpr;
   }
 
   function drawGarden(state, time) {
@@ -105,7 +134,7 @@ export function createRenderer(canvas) {
       ctx.arc(x + 32, 8, 26, 0, Math.PI);
       ctx.fill();
       ctx.beginPath();
-      ctx.arc(x + 32, FIELD.height - 8, 26, Math.PI, Math.PI * 2);
+      ctx.arc(x + 32, FIELD.height - 8, 26, Math.PI, TAU);
       ctx.fill();
     }
 
@@ -121,10 +150,7 @@ export function createRenderer(canvas) {
       const x = (f.x + Math.sin(time * f.speed + f.phase) * 30 + FIELD.width) % FIELD.width;
       const y = (f.y + Math.cos(time * f.speed * 0.8 + f.phase) * 18 + FIELD.height) % FIELD.height;
       const alpha = 0.25 + 0.35 * (0.5 + 0.5 * Math.sin(time * 2 + f.phase * 3));
-      ctx.fillStyle = `rgba(255, 233, 168, ${alpha})`;
-      ctx.beginPath();
-      ctx.arc(x, y, 2.2, 0, Math.PI * 2);
-      ctx.fill();
+      dot(x, y, 2.2, `rgba(255, 233, 168, ${alpha})`);
     }
   }
 
@@ -137,25 +163,16 @@ export function createRenderer(canvas) {
     glow.addColorStop(1, 'rgba(255, 217, 122, 0)');
     ctx.fillStyle = glow;
     ctx.beginPath();
-    ctx.arc(p.x, p.y, 74, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, 74, 0, TAU);
     ctx.fill();
 
     // The keeper: a hooded figure carrying the lantern.
     ctx.save();
     ctx.translate(p.x, p.y);
     ctx.rotate(p.aimAngle);
-    ctx.fillStyle = '#2c2350';
-    ctx.beginPath();
-    ctx.arc(0, 0, PLAYER.radius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = PALETTE.player;
-    ctx.beginPath();
-    ctx.arc(0, 0, PLAYER.radius - 4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = PALETTE.playerRing;
-    ctx.beginPath();
-    ctx.arc(4, 0, 5, 0, Math.PI * 2);
-    ctx.fill();
+    dot(0, 0, PLAYER.radius, '#2c2350');
+    dot(0, 0, PLAYER.radius - 4, PALETTE.player);
+    dot(4, 0, 5, PALETTE.playerRing);
     // The lantern arm points where the keeper aims.
     ctx.strokeStyle = '#2c2350';
     ctx.lineWidth = 4;
@@ -163,39 +180,35 @@ export function createRenderer(canvas) {
     ctx.moveTo(6, 0);
     ctx.lineTo(PLAYER.radius + 8, 0);
     ctx.stroke();
-    ctx.fillStyle = PALETTE.lanternGlow;
-    ctx.beginPath();
-    ctx.arc(PLAYER.radius + 12, 0, 6, 0, Math.PI * 2);
-    ctx.fill();
+    dot(PLAYER.radius + 12, 0, 6, PALETTE.lanternGlow);
     ctx.restore();
   }
 
   function drawMoth(m, time) {
     const flash = m.flash > 0;
-    const body = flash ? '#d9ccff' : m.kind === 'darter' ? '#d86bb0' : '#8f7bd8';
-    const wing = flash ? '#efe8ff' : m.kind === 'darter' ? '#a04a86' : '#6b57b8';
+    const darter = m.kind === 'darter';
+    const body = flash ? '#d9ccff' : darter ? PALETTE.darter : PALETTE.moth;
+    const wing = flash ? '#efe8ff' : darter ? '#a04a86' : PALETTE.mothDark;
     const flap = Math.sin(time * 14 + m.wobble * 4) * 0.5;
     ctx.save();
     ctx.translate(m.x, m.y);
-    const ang = Math.atan2(0, 1);
-    ctx.rotate(ang);
     ctx.fillStyle = wing;
     for (const side of [-1, 1]) {
       ctx.save();
       ctx.rotate(side * (0.5 + flap * 0.4));
       ctx.beginPath();
-      ctx.ellipse(side * m.radius * 0.9, 0, m.radius * 0.95, m.radius * 0.55, side * 0.5, 0, Math.PI * 2);
+      ctx.ellipse(side * m.radius * 0.9, 0, m.radius * 0.95, m.radius * 0.55, side * 0.5, 0, TAU);
       ctx.fill();
       ctx.restore();
     }
     ctx.fillStyle = body;
     ctx.beginPath();
-    ctx.ellipse(0, 0, m.radius * 0.55, m.radius * 0.8, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, m.radius * 0.55, m.radius * 0.8, 0, 0, TAU);
     ctx.fill();
     ctx.fillStyle = '#1c1538';
     ctx.beginPath();
-    ctx.arc(-3, -m.radius * 0.35, 2, 0, Math.PI * 2);
-    ctx.arc(3, -m.radius * 0.35, 2, 0, Math.PI * 2);
+    ctx.arc(-3, -m.radius * 0.35, 2, 0, TAU);
+    ctx.arc(3, -m.radius * 0.35, 2, 0, TAU);
     ctx.fill();
     if (m.maxHp > 1) {
       ctx.fillStyle = '#3a2d6b';
@@ -216,25 +229,25 @@ export function createRenderer(canvas) {
     glow.addColorStop(1, 'rgba(184, 87, 158, 0)');
     ctx.fillStyle = glow;
     ctx.beginPath();
-    ctx.arc(0, 0, b.radius * 2.2, 0, Math.PI * 2);
+    ctx.arc(0, 0, b.radius * 2.2, 0, TAU);
     ctx.fill();
     ctx.fillStyle = flash ? '#e59ad2' : '#7a3a72';
     for (const side of [-1, 1]) {
       ctx.save();
       ctx.rotate(side * (0.6 + flap * 0.3));
       ctx.beginPath();
-      ctx.ellipse(side * b.radius * 0.95, 0, b.radius, b.radius * 0.55, side * 0.45, 0, Math.PI * 2);
+      ctx.ellipse(side * b.radius * 0.95, 0, b.radius, b.radius * 0.55, side * 0.45, 0, TAU);
       ctx.fill();
       ctx.restore();
     }
     ctx.fillStyle = flash ? '#e59ad2' : PALETTE.boss;
     ctx.beginPath();
-    ctx.ellipse(0, 0, b.radius * 0.5, b.radius * 0.75, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, b.radius * 0.5, b.radius * 0.75, 0, 0, TAU);
     ctx.fill();
     ctx.fillStyle = '#ffd97a';
     ctx.beginPath();
-    ctx.arc(-10, -12, 4, 0, Math.PI * 2);
-    ctx.arc(10, -12, 4, 0, Math.PI * 2);
+    ctx.arc(-10, -12, 4, 0, TAU);
+    ctx.arc(10, -12, 4, 0, TAU);
     ctx.fill();
     ctx.restore();
   }
@@ -261,28 +274,20 @@ export function createRenderer(canvas) {
       glow.addColorStop(1, 'rgba(255, 179, 71, 0)');
       ctx.fillStyle = glow;
       ctx.beginPath();
-      ctx.arc(e.x, e.y, 14, 0, Math.PI * 2);
+      ctx.arc(e.x, e.y, 14, 0, TAU);
       ctx.fill();
-      ctx.fillStyle = PALETTE.emberCore;
-      ctx.beginPath();
-      ctx.arc(e.x, e.y, 4, 0, Math.PI * 2);
-      ctx.fill();
+      dot(e.x, e.y, 4, PALETTE.emberCore);
     }
     drawPlayer(state, time);
     for (const pt of state.particles) {
       ctx.globalAlpha = Math.max(0, pt.life / pt.maxLife);
-      ctx.fillStyle = pt.color;
-      ctx.beginPath();
-      ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2);
-      ctx.fill();
+      dot(pt.x, pt.y, pt.size, pt.color);
     }
     ctx.globalAlpha = 1;
-    ctx.font = `700 18px ${FONT}`;
     ctx.textAlign = 'center';
     for (const t of state.texts) {
       ctx.globalAlpha = Math.max(0, Math.min(1, t.life));
-      ctx.fillStyle = t.color;
-      ctx.fillText(t.text, t.x, t.y);
+      text(t.text, t.x, t.y, t.color, F(700, 18));
     }
     ctx.globalAlpha = 1;
   }
@@ -298,53 +303,31 @@ export function createRenderer(canvas) {
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
     // A dim panel keeps the left HUD readable over the keeper's glow.
-    ctx.fillStyle = 'rgba(13, 10, 26, 0.55)';
-    roundRect(ctx, 12, 12, 260, 132, 14);
-    ctx.fill();
+    fillRound(12, 12, 260, 132, 14, 'rgba(13, 10, 26, 0.55)');
     drawHearts(state);
-    ctx.fillStyle = PALETTE.text;
-    ctx.font = `700 26px ${FONT}`;
-    ctx.fillText(`Score ${state.score}`, 24, 78);
-    ctx.font = `600 18px ${FONT}`;
-    ctx.fillStyle = PALETTE.muted;
-    ctx.fillText(`Night ${Math.min(state.night, NIGHTS_TO_WIN)} / ${NIGHTS_TO_WIN}`, 24, 104);
+    text(`Score ${state.score}`, 24, 78, PALETTE.text, F(700, 26));
+    text(`Night ${Math.min(state.night, NIGHTS_TO_WIN)} / ${NIGHTS_TO_WIN}`, 24, 104, PALETTE.muted, F(600, 18));
     if (state.combo > 1) {
-      ctx.fillStyle = '#ffb347';
-      ctx.font = `700 22px ${FONT}`;
-      ctx.fillText(`Combo ×${state.combo}`, 24, 134);
+      text(`Combo ×${state.combo}`, 24, 134, '#ffb347', F(700, 22));
     }
     // Lantern meter: shards collected toward this night's quota.
     const mx = FIELD.width - 324;
-    ctx.fillStyle = PALETTE.panel;
-    roundRect(ctx, mx, 22, 300, 26, 13);
-    ctx.fill();
+    fillRound(mx, 22, 300, 26, 13, PALETTE.panel);
     const frac = Math.min(1, state.shardsCollected / state.quota);
-    ctx.fillStyle = PALETTE.lanternGlow;
-    roundRect(ctx, mx + 3, 25, Math.max(8, 294 * frac), 20, 10);
-    ctx.fill();
-    ctx.fillStyle = '#241b47';
-    ctx.font = `700 16px ${FONT}`;
+    fillRound(mx + 3, 25, Math.max(8, 294 * frac), 20, 10, PALETTE.lanternGlow);
     ctx.textAlign = 'center';
-    ctx.fillText(`Lantern ${Math.min(state.shardsCollected, state.quota)} / ${state.quota}`, mx + 150, 41);
+    text(`Lantern ${Math.min(state.shardsCollected, state.quota)} / ${state.quota}`, mx + 150, 41, '#241b47', F(700, 16));
     ctx.textAlign = 'left';
     if (state.boss) {
       const bx = FIELD.width / 2 - 200;
-      ctx.fillStyle = PALETTE.panel;
-      roundRect(ctx, bx, 96, 400, 18, 9);
-      ctx.fill();
-      ctx.fillStyle = PALETTE.boss;
-      roundRect(ctx, bx + 2, 98, Math.max(6, 396 * (state.boss.hp / state.boss.maxHp)), 14, 7);
-      ctx.fill();
-      ctx.fillStyle = PALETTE.text;
-      ctx.font = `700 16px ${FONT}`;
+      fillRound(bx, 96, 400, 18, 9, PALETTE.panel);
+      fillRound(bx + 2, 98, Math.max(6, 396 * (state.boss.hp / state.boss.maxHp)), 14, 7, PALETTE.boss);
       ctx.textAlign = 'center';
-      ctx.fillText('GLOOM MATRIARCH', FIELD.width / 2, 88);
+      text('GLOOM MATRIARCH', FIELD.width / 2, 88, PALETTE.text, F(700, 16));
       ctx.textAlign = 'left';
     }
-    ctx.fillStyle = PALETTE.muted;
-    ctx.font = `600 14px ${FONT}`;
     ctx.textAlign = 'right';
-    ctx.fillText(muted ? 'M — sound off' : 'M — mute · P — pause', FIELD.width - 24, FIELD.height - 18);
+    text(muted ? 'M — sound off' : 'M — mute · P — pause', FIELD.width - 24, FIELD.height - 18, PALETTE.muted, F(600, 14));
     ctx.textAlign = 'left';
   }
 
@@ -367,31 +350,17 @@ export function createRenderer(canvas) {
     dim();
     panel(FIELD.width / 2 - 330, 108, 660, 500);
     ctx.textAlign = 'center';
-    ctx.fillStyle = PALETTE.lanternGlow;
-    ctx.font = `700 64px ${FONT}`;
-    ctx.fillText('EMBERKEEPER', FIELD.width / 2, 190);
-    ctx.fillStyle = PALETTE.text;
-    ctx.font = `600 22px ${FONT}`;
-    ctx.fillText('Keep the last lantern lit through seven nights.', FIELD.width / 2, 228);
-    ctx.fillStyle = PALETTE.muted;
-    ctx.font = `400 18px ${FONT}`;
-    ctx.fillText('Gloom-moths drift in from the dark. Burst them, gather', FIELD.width / 2, 292);
-    ctx.fillText('their light, and light each lantern before dawn.', FIELD.width / 2, 318);
-    ctx.fillStyle = PALETTE.text;
-    ctx.font = `600 18px ${FONT}`;
-    ctx.fillText('WASD / arrows — move      Mouse — aim      Click / Space — shoot embers', FIELD.width / 2, 372);
-    ctx.fillText('Between nights, pick 1 of 3 upgrades      P — pause      M — mute', FIELD.width / 2, 400);
-    ctx.fillStyle = PALETTE.lanternGlow;
-    ctx.font = `700 24px ${FONT}`;
-    ctx.fillText('Press Space or click to begin', FIELD.width / 2, 470);
+    text('EMBERKEEPER', FIELD.width / 2, 190, PALETTE.lanternGlow, F(700, 64));
+    text('Keep the last lantern lit through seven nights.', FIELD.width / 2, 228, PALETTE.text, F(600, 22));
+    text('Gloom-moths drift in from the dark. Burst them, gather', FIELD.width / 2, 292, PALETTE.muted, F(400, 18));
+    text('their light, and light each lantern before dawn.', FIELD.width / 2, 318, PALETTE.muted, F(400, 18));
+    text('WASD / arrows — move      Mouse — aim      Click / Space — shoot embers', FIELD.width / 2, 372, PALETTE.text, F(600, 18));
+    text('Between nights, pick 1 of 3 upgrades      P — pause      M — mute', FIELD.width / 2, 400, PALETTE.text, F(600, 18));
+    text('Press Space or click to begin', FIELD.width / 2, 470, PALETTE.lanternGlow, F(700, 24));
     if (best > 0) {
-      ctx.fillStyle = PALETTE.muted;
-      ctx.font = `600 18px ${FONT}`;
-      ctx.fillText(`Best score ${best}`, FIELD.width / 2, 512);
+      text(`Best score ${best}`, FIELD.width / 2, 512, PALETTE.muted, F(600, 18));
     }
-    ctx.fillStyle = PALETTE.muted;
-    ctx.font = `400 15px ${FONT}`;
-    ctx.fillText('An original game — no libraries, no network, all art and sound made here.', FIELD.width / 2, 566);
+    text('An original game — no libraries, no network, all art and sound made here.', FIELD.width / 2, 566, PALETTE.muted, F(400, 15));
     ctx.textAlign = 'left';
   }
 
@@ -399,51 +368,34 @@ export function createRenderer(canvas) {
     drawWorld(state, 0);
     dim();
     ctx.textAlign = 'center';
-    ctx.fillStyle = PALETTE.lanternGlow;
-    ctx.font = `700 40px ${FONT}`;
-    ctx.fillText(`Night ${state.night} done — the lantern burns brighter`, FIELD.width / 2, 120);
-    ctx.fillStyle = PALETTE.text;
-    ctx.font = `600 22px ${FONT}`;
-    ctx.fillText('Choose one blessing for the night ahead', FIELD.width / 2, 158);
+    text(`Night ${state.night} done — the lantern burns brighter`, FIELD.width / 2, 120, PALETTE.lanternGlow, F(700, 40));
+    text('Choose one blessing for the night ahead', FIELD.width / 2, 158, PALETTE.text, F(600, 22));
     const cards = state.offer;
-    const cw = 300;
-    const ch = 240;
-    const gap = 28;
+    const { w: cw, h: ch, gap, y: y0 } = CARD;
     const total = cards.length * cw + (cards.length - 1) * gap;
     const x0 = FIELD.width / 2 - total / 2;
-    const y0 = 210;
     cards.forEach((card, i) => {
       const x = x0 + i * (cw + gap);
-      ctx.fillStyle = PALETTE.card;
-      roundRect(ctx, x, y0, cw, ch, 16);
-      ctx.fill();
+      fillRound(x, y0, cw, ch, 16, PALETTE.card);
       ctx.strokeStyle = PALETTE.cardEdge;
       ctx.lineWidth = 2;
       ctx.stroke();
-      ctx.fillStyle = PALETTE.lanternGlow;
-      ctx.font = `700 30px ${FONT}`;
-      ctx.fillText(`${i + 1}`, x + cw / 2, y0 + 52);
-      ctx.fillStyle = PALETTE.text;
-      ctx.font = `700 24px ${FONT}`;
-      ctx.fillText(card.title, x + cw / 2, y0 + 104);
-      ctx.fillStyle = PALETTE.muted;
-      ctx.font = `400 17px ${FONT}`;
+      text(`${i + 1}`, x + cw / 2, y0 + 52, PALETTE.lanternGlow, F(700, 30));
+      text(card.title, x + cw / 2, y0 + 104, PALETTE.text, F(700, 24));
       const words = card.blurb.split(' ');
       let line = '';
       let ly = y0 + 146;
       for (const w of words) {
         if ((line + ' ' + w).trim().length > 26) {
-          ctx.fillText(line.trim(), x + cw / 2, ly);
+          text(line.trim(), x + cw / 2, ly, PALETTE.muted, F(400, 17));
           ly += 24;
           line = w;
         } else line += ' ' + w;
       }
-      ctx.fillText(line.trim(), x + cw / 2, ly);
+      text(line.trim(), x + cw / 2, ly, PALETTE.muted, F(400, 17));
     });
-    ctx.fillStyle = PALETTE.muted;
-    ctx.font = `600 18px ${FONT}`;
-    ctx.fillText('Click a card, or press 1 / 2 / 3', FIELD.width / 2, y0 + ch + 52);
-    ctx.fillText(`Score ${state.score} · Best ${best}`, FIELD.width / 2, y0 + ch + 84);
+    text('Click a card, or press 1 / 2 / 3', FIELD.width / 2, y0 + ch + 52, PALETTE.muted, F(600, 18));
+    text(`Score ${state.score} · Best ${best}`, FIELD.width / 2, y0 + ch + 84, PALETTE.muted, F(600, 18));
     ctx.textAlign = 'left';
   }
 
@@ -451,12 +403,8 @@ export function createRenderer(canvas) {
     drawWorld(state, 0);
     dim();
     ctx.textAlign = 'center';
-    ctx.fillStyle = PALETTE.text;
-    ctx.font = `700 52px ${FONT}`;
-    ctx.fillText('Paused', FIELD.width / 2, 330);
-    ctx.fillStyle = PALETTE.muted;
-    ctx.font = `600 20px ${FONT}`;
-    ctx.fillText('Press P or Space to keep playing', FIELD.width / 2, 376);
+    text('Paused', FIELD.width / 2, 330, PALETTE.text, F(700, 52));
+    text('Press P or Space to keep playing', FIELD.width / 2, 376, PALETTE.muted, F(600, 20));
     ctx.textAlign = 'left';
   }
 
@@ -465,20 +413,11 @@ export function createRenderer(canvas) {
     dim();
     panel(FIELD.width / 2 - 300, 160, 600, 380);
     ctx.textAlign = 'center';
-    ctx.fillStyle = PALETTE.danger;
-    ctx.font = `700 52px ${FONT}`;
-    ctx.fillText('The light went out', FIELD.width / 2, 250);
-    ctx.fillStyle = PALETTE.text;
-    ctx.font = `600 22px ${FONT}`;
-    ctx.fillText(`Night ${state.night} · ${state.kills} moths burst`, FIELD.width / 2, 306);
-    ctx.font = `700 30px ${FONT}`;
-    ctx.fillText(`Score ${state.score}`, FIELD.width / 2, 356);
-    ctx.fillStyle = PALETTE.muted;
-    ctx.font = `600 18px ${FONT}`;
-    ctx.fillText(`Best ${best}`, FIELD.width / 2, 392);
-    ctx.fillStyle = PALETTE.lanternGlow;
-    ctx.font = `700 22px ${FONT}`;
-    ctx.fillText('Press R or click to try again', FIELD.width / 2, 462);
+    text('The light went out', FIELD.width / 2, 250, PALETTE.danger, F(700, 52));
+    text(`Night ${state.night} · ${state.kills} moths burst`, FIELD.width / 2, 306, PALETTE.text, F(600, 22));
+    text(`Score ${state.score}`, FIELD.width / 2, 356, PALETTE.text, F(700, 30));
+    text(`Best ${best}`, FIELD.width / 2, 392, PALETTE.muted, F(600, 18));
+    text('Press R or click to try again', FIELD.width / 2, 462, PALETTE.lanternGlow, F(700, 22));
     ctx.textAlign = 'left';
   }
 
@@ -487,27 +426,18 @@ export function createRenderer(canvas) {
     dim();
     panel(FIELD.width / 2 - 330, 130, 660, 440);
     ctx.textAlign = 'center';
-    ctx.fillStyle = PALETTE.lanternGlow;
-    ctx.font = `700 56px ${FONT}`;
-    ctx.fillText('DAWN BREAKS', FIELD.width / 2, 220);
-    ctx.fillStyle = PALETTE.text;
-    ctx.font = `600 22px ${FONT}`;
-    ctx.fillText('Seven lanterns lit. The garden is yours again.', FIELD.width / 2, 266);
-    ctx.font = `700 30px ${FONT}`;
-    ctx.fillText(`Score ${state.score} · ${state.kills} moths burst`, FIELD.width / 2, 330);
-    ctx.fillStyle = PALETTE.muted;
-    ctx.font = `600 18px ${FONT}`;
-    ctx.fillText(`Best ${best}`, FIELD.width / 2, 366);
-    ctx.fillStyle = PALETTE.lanternGlow;
-    ctx.font = `700 22px ${FONT}`;
-    ctx.fillText('Press R or click to play again', FIELD.width / 2, 462);
-    ctx.fillText('Keep playing? Press Space for endless nights', FIELD.width / 2, 496);
+    text('DAWN BREAKS', FIELD.width / 2, 220, PALETTE.lanternGlow, F(700, 56));
+    text('Seven lanterns lit. The garden is yours again.', FIELD.width / 2, 266, PALETTE.text, F(600, 22));
+    text(`Score ${state.score} · ${state.kills} moths burst`, FIELD.width / 2, 330, PALETTE.text, F(700, 30));
+    text(`Best ${best}`, FIELD.width / 2, 366, PALETTE.muted, F(600, 18));
+    text('Press R or click to play again', FIELD.width / 2, 462, PALETTE.lanternGlow, F(700, 22));
+    text('Keep playing? Press Space for endless nights', FIELD.width / 2, 496, PALETTE.lanternGlow, F(700, 22));
     ctx.textAlign = 'left';
   }
 
   return {
     draw(state, screen, best, muted, time) {
-      const dpr = fitCanvas();
+      fitCanvas();
       const scale = Math.min(canvas.width / FIELD.width, canvas.height / FIELD.height);
       ctx.setTransform(scale, 0, 0, scale, 0, 0);
       ctx.clearRect(0, 0, FIELD.width, FIELD.height);
@@ -521,7 +451,6 @@ export function createRenderer(canvas) {
         drawHud(state, muted);
       }
       ctx.setTransform(1, 0, 0, 1, 0, 0);
-      return dpr;
     },
   };
 }

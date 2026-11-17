@@ -29,25 +29,25 @@ export const EVENT_BURST = 64;
 export const KIND_MOTH = 'moth';
 export const KIND_DARTER = 'darter';
 
-function dist2(ax, ay, bx, by) {
-  const dx = ax - bx;
-  const dy = ay - by;
-  return dx * dx + dy * dy;
+const TAU = Math.PI * 2;
+
+function freshUpgrades() {
+  return {
+    fireInterval: PLAYER.fireInterval,
+    emberSpeed: PLAYER.emberSpeed,
+    shots: 1,
+    pierce: 0,
+    speed: PLAYER.speed,
+    pickupRadius: PLAYER.pickupRadius,
+    emberDamage: PLAYER.emberDamage,
+    maxHearts: PLAYER.maxHearts,
+  };
 }
 
 export function createWorld(random) {
   const state = {
     player: { x: FIELD.width / 2, y: FIELD.height / 2, hearts: PLAYER.maxHearts, invuln: 0, fireTimer: 0, aimAngle: -Math.PI / 2 },
-    upgrades: {
-      fireInterval: PLAYER.fireInterval,
-      emberSpeed: PLAYER.emberSpeed,
-      shots: 1,
-      pierce: 0,
-      speed: PLAYER.speed,
-      pickupRadius: PLAYER.pickupRadius,
-      emberDamage: PLAYER.emberDamage,
-      maxHearts: PLAYER.maxHearts,
-    },
+    upgrades: freshUpgrades(),
     embers: [],
     moths: [],
     shards: [],
@@ -90,16 +90,7 @@ export function createWorld(random) {
     state.player.maxHearts = PLAYER.maxHearts;
     state.player.invuln = 0;
     state.player.fireTimer = 0;
-    state.upgrades = {
-      fireInterval: PLAYER.fireInterval,
-      emberSpeed: PLAYER.emberSpeed,
-      shots: 1,
-      pierce: 0,
-      speed: PLAYER.speed,
-      pickupRadius: PLAYER.pickupRadius,
-      emberDamage: PLAYER.emberDamage,
-      maxHearts: PLAYER.maxHearts,
-    };
+    state.upgrades = freshUpgrades();
     state.embers.length = 0;
     state.moths.length = 0;
     state.shards.length = 0;
@@ -124,28 +115,27 @@ export function createWorld(random) {
     return { x: FIELD.width + m, y: random.range(m, FIELD.height - m) };
   }
 
+  /** One moth of either kind, at (x, y); boss-spawned moths pass a fixed wobbleSpeed, no edge pause, and 1 hp. */
+  function makeMoth(kind, x, y, wobbleSpeed, pause, hp) {
+    const cfg = kind === KIND_DARTER ? Darter : MOTH;
+    const scaledHp = kind === KIND_DARTER ? 1 : Math.max(1, Math.round(MOTH.hp + MOTH.hpPerNight * (state.night - 1)));
+    hp = hp ?? scaledHp;
+    return {
+      kind, x, y, hp, maxHp: hp, radius: cfg.radius,
+      speed: kind === KIND_DARTER ? cfg.speed : Math.min(MOTH.speed + MOTH.speedPerNight * (state.night - 1), MOTH.maxSpeed),
+      pause: pause ?? (kind === KIND_MOTH ? MOTH.edgePause : 0),
+      wobble: random.range(0, TAU),
+      wobbleSpeed: wobbleSpeed ?? random.range(1.5, 3),
+      mode: 'drift',
+      modeTimer: kind === KIND_DARTER ? Darter.aimTime : 0,
+      lx: 0, ly: 0, flash: 0,
+    };
+  }
+
   function spawnMoth() {
     const p = edgePoint();
     const kind = random.next() < 0.3 ? KIND_DARTER : KIND_MOTH;
-    const cfg = kind === KIND_DARTER ? Darter : MOTH;
-    const hp = Math.max(1, Math.round(cfg.hp + (kind === KIND_MOTH ? MOTH.hpPerNight * (state.night - 1) : 0)));
-    state.moths.push({
-      kind,
-      x: p.x,
-      y: p.y,
-      hp,
-      maxHp: hp,
-      radius: cfg.radius,
-      speed: kind === KIND_DARTER ? cfg.speed : Math.min(MOTH.speed + MOTH.speedPerNight * (state.night - 1), MOTH.maxSpeed),
-      pause: kind === KIND_MOTH ? MOTH.edgePause : 0,
-      wobble: random.range(0, Math.PI * 2),
-      wobbleSpeed: random.range(1.5, 3),
-      mode: 'drift',
-      modeTimer: kind === KIND_DARTER ? Darter.aimTime : 0,
-      lx: 0,
-      ly: 0,
-      flash: 0,
-    });
+    state.moths.push(makeMoth(kind, p.x, p.y));
   }
 
   function spawnBoss() {
@@ -166,7 +156,7 @@ export function createWorld(random) {
 
   function burst(x, y, color, count, speed) {
     for (let i = 0; i < count; i += 1) {
-      const a = random.range(0, Math.PI * 2);
+      const a = random.range(0, TAU);
       const v = random.range(speed * 0.3, speed);
       state.particles.push({
         x, y,
@@ -182,7 +172,7 @@ export function createWorld(random) {
 
   function dropShards(x, y, count) {
     for (let i = 0; i < count; i += 1) {
-      const a = random.range(0, Math.PI * 2);
+      const a = random.range(0, TAU);
       const v = random.range(40, 130);
       state.shards.push({
         x, y,
@@ -205,9 +195,10 @@ export function createWorld(random) {
     state.comboTimer = COMBO.window;
     const gained = 10 * state.combo;
     state.score += gained;
-    const color = moth.kind === KIND_DARTER ? '#d86bb0' : '#8f7bd8';
-    burst(moth.x, moth.y, color, moth.kind === KIND_DARTER ? 18 : 12, 180);
-    dropShards(moth.x, moth.y, moth.kind === KIND_DARTER ? Darter.shards : MOTH.shards);
+    const darter = moth.kind === KIND_DARTER;
+    const color = darter ? '#d86bb0' : '#8f7bd8';
+    burst(moth.x, moth.y, color, darter ? 18 : 12, 180);
+    dropShards(moth.x, moth.y, darter ? Darter.shards : MOTH.shards);
     addText(moth.x, moth.y - 18, `+${gained}`, '#ffe9a8');
     return events | EVENT_BURST;
   }
@@ -355,16 +346,8 @@ export function createWorld(random) {
     b.spawnTimer -= dt;
     if (b.spawnTimer <= 0 && state.moths.length < mothCapForNight(state.night)) {
       b.spawnTimer = BOSS.spawnInterval;
-      const a = random.range(0, Math.PI * 2);
-      state.moths.push({
-        kind: KIND_MOTH,
-        x: b.x + Math.cos(a) * (b.radius + 20),
-        y: b.y + Math.sin(a) * (b.radius + 20),
-        hp: 1, maxHp: 1, radius: MOTH.radius,
-        speed: Math.min(MOTH.speed + MOTH.speedPerNight * (state.night - 1), MOTH.maxSpeed),
-        pause: 0, wobble: random.range(0, Math.PI * 2), wobbleSpeed: 2,
-        mode: 'drift', modeTimer: 0, lx: 0, ly: 0, flash: 0,
-      });
+      const a = random.range(0, TAU);
+      state.moths.push(makeMoth(KIND_MOTH, b.x + Math.cos(a) * (b.radius + 20), b.y + Math.sin(a) * (b.radius + 20), 2, 0, 1));
     }
     const rr = b.x - p.x;
     const ry = b.y - p.y;

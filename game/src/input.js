@@ -18,15 +18,18 @@ export function createInput(canvas) {
   let mouseDown = false;
   let clicked = false;
 
+  /** Key code → the action it fires (0 when the key does nothing). */
+  const KEY_ACTIONS = {
+    Space: ACTION_CONFIRM, Enter: ACTION_CONFIRM,
+    KeyP: ACTION_PAUSE, Escape: ACTION_PAUSE,
+    KeyM: ACTION_MUTE, KeyR: ACTION_RESTART,
+    Digit1: ACTION_PICK_1, Numpad1: ACTION_PICK_1,
+    Digit2: ACTION_PICK_2, Numpad2: ACTION_PICK_2,
+    Digit3: ACTION_PICK_3, Numpad3: ACTION_PICK_3,
+  };
+
   function keyAction(code) {
-    if (code === 'Space' || code === 'Enter') return ACTION_CONFIRM;
-    if (code === 'KeyP' || code === 'Escape') return ACTION_PAUSE;
-    if (code === 'KeyM') return ACTION_MUTE;
-    if (code === 'KeyR') return ACTION_RESTART;
-    if (code === 'Digit1' || code === 'Numpad1') return ACTION_PICK_1;
-    if (code === 'Digit2' || code === 'Numpad2') return ACTION_PICK_2;
-    if (code === 'Digit3' || code === 'Numpad3') return ACTION_PICK_3;
-    return 0;
+    return KEY_ACTIONS[code] || 0;
   }
 
   window.addEventListener('keydown', (event) => {

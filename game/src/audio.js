@@ -123,26 +123,24 @@ export function createAudio() {
       const filter = ctx.createBiquadFilter();
       filter.type = 'lowpass';
       filter.frequency.value = 700;
-      const o1 = ctx.createOscillator();
-      o1.type = 'sine';
-      o1.frequency.value = 220;
-      const o2 = ctx.createOscillator();
-      o2.type = 'sine';
-      o2.frequency.value = 277.18;
+      const oscs = [220, 277.18].map((freq) => {
+        const o = ctx.createOscillator();
+        o.type = 'sine';
+        o.frequency.value = freq;
+        o.connect(filter);
+        o.start();
+        return o;
+      });
       const lfo = ctx.createOscillator();
       lfo.frequency.value = 0.07;
       const lfoGain = ctx.createGain();
       lfoGain.gain.value = 0.02;
       lfo.connect(lfoGain);
       lfoGain.connect(gain.gain);
-      o1.connect(filter);
-      o2.connect(filter);
       filter.connect(gain);
       gain.connect(master);
-      o1.start();
-      o2.start();
       lfo.start();
-      padNodes = { gain, o1, o2, lfo };
+      padNodes = { gain, oscs, lfo };
     },
     stopPad() {
       if (!padNodes || !ctx) return;
@@ -150,7 +148,7 @@ export function createAudio() {
       padNodes = null;
       nodes.gain.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + 0.5);
       setTimeout(() => {
-        try { nodes.o1.stop(); nodes.o2.stop(); nodes.lfo.stop(); } catch { /* already stopped */ }
+        try { nodes.oscs.forEach((o) => o.stop()); nodes.lfo.stop(); } catch { /* already stopped */ }
       }, 600);
     },
   };
