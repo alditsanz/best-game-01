@@ -2,7 +2,7 @@
 // the HUD and the five screens (title, play, upgrade, paused, game over, victory). The
 // renderer never changes the world; it paints the state it is given.
 
-import { FIELD, FONT, NIGHTS_TO_WIN, PALETTE, PLAYER, nightTheme } from './config.js';
+import { FEATS, FIELD, FONT, NIGHTS_TO_WIN, PALETTE, PLAYER, REALMS, nightTheme, realmForNight } from './config.js';
 
 const TAU = Math.PI * 2;
 
@@ -17,7 +17,10 @@ export const SCREEN_OVER = 'over';
 export const SCREEN_WIN = 'win';
 
 /** Upgrade-card geometry (w/h/gap/top), shared by the upgrade screen and main.js's click picker. */
-export const CARD = { w: 300, h: 240, gap: 28, y: 210 };
+export const CARD = { w: 300, h: 210, gap: 28, y: 148 };
+
+/** Road-card geometry (w/h/gap/top), shared by the upgrade screen and main.js's click picker. */
+export const PATH_CARD = { w: 300, h: 118, gap: 28, y: 412 };
 
 function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
@@ -537,34 +540,51 @@ export function createRenderer(canvas) {
     }
   }
 
+  /** What is alive in the garden right now, by kind: "Moths 8 · Darters 2 · Wisps 1". */
+  function censusLine(state) {
+    const names = { moth: 'Moths', darter: 'Darters', wisp: 'Wisps', splitter: 'Splitters', spitter: 'Spitters', 'lantern-moth': 'Lantern', mote: 'Motes', elder: 'Elders' };
+    const counts = {};
+    for (const m of state.moths) counts[m.kind] = (counts[m.kind] || 0) + 1;
+    const parts = Object.keys(names).filter((k) => counts[k]).map((k) => `${names[k]} ${counts[k]}`);
+    if (state.boss) parts.unshift('Matriarch!');
+    return parts.length ? parts.join(' · ') : 'Garden clear';
+  }
+
+  /** What comes after this night. */
+  function nextLine(state) {
+    if (state.night < NIGHTS_TO_WIN) {
+      const t = nightTheme(state.night + 1);
+      return `NEXT Night ${state.night + 1} — ${t.name}`;
+    }
+    if (state.night === NIGHTS_TO_WIN) return 'NEXT Dawn — light the last lantern';
+    const t = nightTheme(state.night + 1);
+    return `NEXT Endless ${state.night + 1} — ${t.name}`;
+  }
+
   function drawHud(state, muted) {
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    // A dim panel keeps the left HUD readable over the keeper's glow.
-    fillRound(12, 12, 260, 132, 14, 'rgba(13, 10, 26, 0.55)');
-    drawHearts(state);
-    text(`Score ${state.score}`, 24, 78, PALETTE.text, F(700, 26));
-    text(state.night > NIGHTS_TO_WIN ? `Endless Night ${state.night}` : `Night ${Math.min(state.night, NIGHTS_TO_WIN)} / ${NIGHTS_TO_WIN}`, 24, 104, PALETTE.muted, F(600, 18));
-    let hy = 134;
+    // The lines stack, so the panel grows to fit them — hearts on top, then the
+    // score, the night, the win/lose stakes, the census and what comes next.
+    const lines = [];
+    lines.push({ str: `Score ${state.score}`, color: PALETTE.text, font: F(700, 26) });
+    lines.push({ str: state.night > NIGHTS_TO_WIN ? `Endless Night ${state.night}` : `Night ${Math.min(state.night, NIGHTS_TO_WIN)} / ${NIGHTS_TO_WIN}`, color: PALETTE.muted, font: F(600, 18) });
     const theme = nightTheme(state.night);
-    if (state.night !== NIGHTS_TO_WIN) {
-      text(`${theme.name} — ${theme.blurb}`, 24, hy, '#c77dff', F(700, 18));
-      hy += 24;
-    }
-    if (state.combo > 1) {
-      text(`Combo ×${state.combo}`, 24, hy, '#ffb347', F(700, 22));
-      hy += 24;
-    }
-    if (state.surgeTimer > 0) {
-      text(`SURGE +1 dmg ${Math.ceil(state.surgeTimer)}s`, 24, hy, '#ff9d5c', F(700, 18));
-      hy += 24;
-    }
-    if (state.orbiters.length > 0) {
-      text(`Orbit ×${state.orbiters.length}`, 24, hy, '#ffd97a', F(700, 18));
-      hy += 24;
-    }
-    if (state.night === NIGHTS_TO_WIN) {
-      text('DAWN RUSH — hold the line!', 24, hy, '#ff6b6b', F(700, 18));
+    if (state.night !== NIGHTS_TO_WIN) lines.push({ str: `${theme.name} — ${theme.blurb}`, color: '#c77dff', font: F(700, 18) });
+    if (state.combo > 1) lines.push({ str: `Combo ×${state.combo}`, color: '#ffb347', font: F(700, 22) });
+    if (state.surgeTimer > 0) lines.push({ str: `SURGE +1 dmg ${Math.ceil(state.surgeTimer)}s`, color: '#ff9d5c', font: F(700, 18) });
+    if (state.orbiters.length > 0) lines.push({ str: `Orbit ×${state.orbiters.length}`, color: '#ffd97a', font: F(700, 18) });
+    if (state.night === NIGHTS_TO_WIN) lines.push({ str: 'DAWN RUSH — hold the line!', color: '#ff6b6b', font: F(700, 18) });
+    lines.push({ str: state.endless ? 'Endless — survive · LOSE 0 hearts' : 'WIN light 7 lanterns · LOSE 0 hearts', color: PALETTE.muted, font: F(600, 15) });
+    lines.push({ str: censusLine(state), color: PALETTE.text, font: F(600, 15) });
+    lines.push({ str: nextLine(state), color: '#c77dff', font: F(600, 15) });
+    // A dim panel keeps the left HUD readable over the keeper's glow.
+    fillRound(12, 12, 352, 46 + lines.length * 22 + 8, 14, 'rgba(13, 10, 26, 0.55)');
+    drawHearts(state);
+    let y = 78;
+    for (const l of lines) {
+      text(l.str, 24, y, l.color, l.font);
+      y += 22;
     }
     // Lantern meter: shards collected toward this night's quota.
     const mx = FIELD.width - 324;
@@ -618,49 +638,97 @@ export function createRenderer(canvas) {
     ctx.stroke();
   }
 
-  function drawTitle(state, best) {
+  function drawTitle(state, best, records) {
     drawWorld(state, 0);
     dim();
-    panel(FIELD.width / 2 - 330, 108, 660, 500);
+    panel(FIELD.width / 2 - 360, 76, 720, 568);
     ctx.textAlign = 'center';
-    text('EMBERKEEPER', FIELD.width / 2, 190, PALETTE.lanternGlow, F(700, 64));
-    text('Keep the last lantern lit through seven nights.', FIELD.width / 2, 228, PALETTE.text, F(600, 22));
-    text('Gloom-moths drift in from the dark. Burst them, gather', FIELD.width / 2, 292, PALETTE.muted, F(400, 18));
-    text('their light, and light each lantern before dawn.', FIELD.width / 2, 318, PALETTE.muted, F(400, 18));
-    text('Beware the wisps, the spitting gloom and splitting moths —', FIELD.width / 2, 344, PALETTE.wisp, F(600, 18));
-    text('hunt the golden lantern-moths; an Orbit guards, a Ward saves.', FIELD.width / 2, 368, PALETTE.wisp, F(600, 18));
-    text('WASD / arrows — move      Mouse — aim      Click / Space — shoot embers', FIELD.width / 2, 396, PALETTE.text, F(600, 18));
-    text('Between nights, pick 1 of 3 upgrades      P — pause      M — mute', FIELD.width / 2, 424, PALETTE.text, F(600, 18));
-    text('E — Lantern Flare: spend 5 shards, burst nearby moths', FIELD.width / 2, 448, PALETTE.text, F(600, 18));
-    text('Press Space or click to begin', FIELD.width / 2, 484, PALETTE.lanternGlow, F(700, 24));
-    if (best > 0) {
-      text(`Best score ${best}`, FIELD.width / 2, 512, PALETTE.muted, F(600, 18));
-    }
-    text('An original game — no libraries, no network, all art and sound made here.', FIELD.width / 2, 566, PALETTE.muted, F(400, 15));
+    text('EMBERKEEPER', FIELD.width / 2, 156, PALETTE.lanternGlow, F(700, 64));
+    text('Keep the last lantern lit through seven nights.', FIELD.width / 2, 192, PALETTE.text, F(600, 22));
+    // The stakes, in one glance: the goal, how you win, how you lose.
+    const stakes = [
+      { label: 'GOAL', color: '#4a90d9', desc: 'Light all seven lanterns before dawn' },
+      { label: 'WIN', color: '#4caf7d', desc: "Fill each night's lantern quota — boss nights need her gone too" },
+      { label: 'LOSE', color: '#ff6b6b', desc: 'Lose all three hearts and the light goes out' },
+    ];
+    stakes.forEach((s, i) => {
+      const y = 232 + i * 30;
+      const lx = FIELD.width / 2 - 330;
+      fillRound(lx, y - 19, 64, 24, 7, s.color);
+      text(s.label, lx + 32, y, '#0d0a1a', F(700, 14));
+      ctx.textAlign = 'left';
+      text(s.desc, lx + 78, y, PALETTE.text, F(600, 17));
+      ctx.textAlign = 'center';
+    });
+    // How to keep the light, in three steps.
+    text('HOW TO KEEP THE LIGHT', FIELD.width / 2, 344, PALETTE.lanternGlow, F(700, 18));
+    const steps = [
+      { title: '1 · SHOOT', lines: ['Click or Space fires', 'embers at the moths'] },
+      { title: '2 · GATHER', lines: ['Burst moths, collect', 'the light shards'] },
+      { title: '3 · CHOOSE', lines: ['Pick a blessing and', 'a road each night'] },
+    ];
+    const sw = 220;
+    const sgap = 16;
+    const sx0 = FIELD.width / 2 - (steps.length * sw + (steps.length - 1) * sgap) / 2;
+    steps.forEach((s, i) => {
+      const x = sx0 + i * (sw + sgap);
+      fillRound(x, 360, sw, 86, 12, PALETTE.card);
+      text(s.title, x + sw / 2, 392, PALETTE.lanternGlow, F(700, 18));
+      text(s.lines[0], x + sw / 2, 418, PALETTE.text, F(400, 15));
+      text(s.lines[1], x + sw / 2, 438, PALETTE.text, F(400, 15));
+    });
+    text('8 FOES · 12 UPGRADES · 3-PHASE BOSS · 7 NAMED NIGHTS · ENDLESS', FIELD.width / 2, 478, PALETTE.muted, F(600, 17));
+    text('WASD move · Mouse aim · E Flare · P pause · M mute', FIELD.width / 2, 506, PALETTE.muted, F(600, 16));
+    const runs = (records && records.runs) || [];
+    text(best > 0 ? `Best ${best}` + (runs.length ? ` · Last runs ${runs.join(' · ')}` : '') : 'No lantern lit yet — be the first', FIELD.width / 2, 534, PALETTE.muted, F(600, 17));
+    text('Press Space or click to begin', FIELD.width / 2, 572, PALETTE.lanternGlow, F(700, 24));
+    text('An original game — no libraries, no network, all art and sound made here.', FIELD.width / 2, 612, PALETTE.muted, F(400, 15));
     ctx.textAlign = 'left';
+  }
+
+  /** The road map: the four realms in order, the one this night belongs to lit gold. */
+  function drawRealmStrip(state, y) {
+    const current = realmForNight(state.night).id;
+    const shown = REALMS.map((r) => ({ name: r.id === current ? `● ${r.name}` : r.name, current: r.id === current }));
+    const gap = 46;
+    ctx.font = F(700, 16);
+    let total = 0;
+    for (const s of shown) total += ctx.measureText(s.name).width;
+    total += (shown.length - 1) * gap;
+    let x = FIELD.width / 2 - total / 2;
+    ctx.textAlign = 'left';
+    shown.forEach((s, i) => {
+      const w = ctx.measureText(s.name).width;
+      text(s.name, x, y, s.current ? PALETTE.lanternGlow : PALETTE.muted, F(700, 16));
+      if (i < shown.length - 1) text('→', x + w + 14, y, PALETTE.muted, F(700, 16));
+      x += w + gap;
+    });
+    ctx.textAlign = 'center';
   }
 
   function drawUpgrade(state, best) {
     drawWorld(state, 0);
     dim();
     ctx.textAlign = 'center';
-    text(`Night ${state.night} done — the lantern burns brighter`, FIELD.width / 2, 120, PALETTE.lanternGlow, F(700, 40));
-    text('Choose one blessing for the night ahead', FIELD.width / 2, 158, PALETTE.text, F(600, 22));
+    const grade = state.grades[state.night] || '—';
+    text(`Night ${state.night} done — Grade ${grade} · the lantern burns brighter`, FIELD.width / 2, 84, PALETTE.lanternGlow, F(700, 34));
+    text('Choose one blessing for the night ahead', FIELD.width / 2, 118, PALETTE.text, F(600, 22));
     const cards = state.offer;
     const { w: cw, h: ch, gap, y: y0 } = CARD;
     const total = cards.length * cw + (cards.length - 1) * gap;
     const x0 = FIELD.width / 2 - total / 2;
     cards.forEach((card, i) => {
       const x = x0 + i * (cw + gap);
+      const taken = state.pickedUpgrade === card.id;
       fillRound(x, y0, cw, ch, 16, PALETTE.card);
-      ctx.strokeStyle = PALETTE.cardEdge;
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = taken ? PALETTE.lanternGlow : PALETTE.cardEdge;
+      ctx.lineWidth = taken ? 3 : 2;
       ctx.stroke();
       text(`${i + 1}`, x + cw / 2, y0 + 52, PALETTE.lanternGlow, F(700, 30));
-      text(card.title, x + cw / 2, y0 + 104, PALETTE.text, F(700, 24));
+      text(card.title, x + cw / 2, y0 + 100, PALETTE.text, F(700, 24));
       const words = card.blurb.split(' ');
       let line = '';
-      let ly = y0 + 146;
+      let ly = y0 + 140;
       for (const w of words) {
         if ((line + ' ' + w).trim().length > 26) {
           text(line.trim(), x + cw / 2, ly, PALETTE.muted, F(400, 17));
@@ -669,9 +737,32 @@ export function createRenderer(canvas) {
         } else line += ' ' + w;
       }
       text(line.trim(), x + cw / 2, ly, PALETTE.muted, F(400, 17));
+      if (taken) text('TAKEN', x + cw / 2, y0 + ch - 16, PALETTE.lanternGlow, F(700, 16));
     });
-    text('Click a card, or press 1 / 2 / 3', FIELD.width / 2, y0 + ch + 52, PALETTE.muted, F(600, 18));
-    text(`Score ${state.score} · Best ${best}`, FIELD.width / 2, y0 + ch + 84, PALETTE.muted, F(600, 18));
+    // The road to the next night: every road has its toll and its gift.
+    text('Choose a road to the next night — every road has its toll and its gift', FIELD.width / 2, 396, PALETTE.text, F(600, 20));
+    const roads = state.paths;
+    const { w: rw, h: rh, gap: rgap, y: ry0 } = PATH_CARD;
+    const rtotal = roads.length * rw + (roads.length - 1) * rgap;
+    const rx0 = FIELD.width / 2 - rtotal / 2;
+    roads.forEach((road, i) => {
+      const x = rx0 + i * (rw + rgap);
+      const taken = state.pickedPath === road.id;
+      fillRound(x, ry0, rw, rh, 14, PALETTE.card);
+      ctx.strokeStyle = taken ? PALETTE.lanternGlow : PALETTE.cardEdge;
+      ctx.lineWidth = taken ? 3 : 2;
+      ctx.stroke();
+      ctx.textAlign = 'left';
+      text(`${i + 4}`, x + 20, ry0 + 34, PALETTE.lanternGlow, F(700, 20));
+      text(road.title, x + 52, ry0 + 34, PALETTE.text, F(700, 20));
+      text(`RISK  ${road.risk}`, x + 20, ry0 + 66, '#ff9d9d', F(600, 15));
+      text(`GIFT  ${road.reward}`, x + 20, ry0 + 92, '#8fe0a8', F(600, 15));
+      ctx.textAlign = 'center';
+      if (taken) text('TAKEN', x + rw / 2, ry0 + rh - 10, PALETTE.lanternGlow, F(700, 14));
+    });
+    drawRealmStrip(state, 574);
+    text('Click a card and a road — or press 1 / 2 / 3, then 4 / 5 / 6', FIELD.width / 2, 612, PALETTE.muted, F(600, 18));
+    text(`Score ${state.score} · Best ${best}`, FIELD.width / 2, 646, PALETTE.muted, F(600, 18));
     ctx.textAlign = 'left';
   }
 
@@ -700,32 +791,88 @@ export function createRenderer(canvas) {
     text(`Score ${state.score}`, FIELD.width / 2, 356, PALETTE.text, F(700, 30));
     text(`Best ${best}`, FIELD.width / 2, 392, PALETTE.muted, F(600, 18));
     text(`Accuracy ${accuracy(state)}% · ${state.shotsFired} embers fired`, FIELD.width / 2, 424, PALETTE.muted, F(600, 18));
-    text('Press R or click to try again', FIELD.width / 2, 462, PALETTE.lanternGlow, F(700, 22));
+    text(`Feats ${state.feats.length} / 10 unlocked`, FIELD.width / 2, 452, PALETTE.muted, F(600, 18));
+    text('Press R or click to try again', FIELD.width / 2, 496, PALETTE.lanternGlow, F(700, 22));
     ctx.textAlign = 'left';
+  }
+
+  /** One letter grade per night, coloured: S gold, A teal, B blue, C ember. */
+  function gradeColor(g) {
+    if (g === 'S') return '#ffd97a';
+    if (g === 'A') return '#7fe0c3';
+    if (g === 'B') return '#8fb8ff';
+    return '#ff9d5c';
   }
 
   function drawWin(state, best) {
     drawWorld(state, 0);
     dim();
-    panel(FIELD.width / 2 - 330, 130, 660, 440);
+    panel(FIELD.width / 2 - 430, 88, 860, 580);
     ctx.textAlign = 'center';
-    text('DAWN BREAKS', FIELD.width / 2, 220, PALETTE.lanternGlow, F(700, 56));
-    text('Seven lanterns lit. The garden is yours again.', FIELD.width / 2, 266, PALETTE.text, F(600, 22));
-    text(`Score ${state.score} · ${state.kills} moths burst`, FIELD.width / 2, 330, PALETTE.text, F(700, 30));
-    text(`Best ${best}`, FIELD.width / 2, 366, PALETTE.muted, F(600, 18));
-    text(`Accuracy ${accuracy(state)}% · ${state.shotsFired} embers fired`, FIELD.width / 2, 400, PALETTE.muted, F(600, 18));
-    text('Press R or click to play again', FIELD.width / 2, 462, PALETTE.lanternGlow, F(700, 22));
-    text('Keep playing? Press Space for endless nights', FIELD.width / 2, 496, PALETTE.lanternGlow, F(700, 22));
+    text('DAWN BREAKS', FIELD.width / 2, 164, PALETTE.lanternGlow, F(700, 56));
+    text('Seven lanterns lit. The garden is yours again.', FIELD.width / 2, 200, PALETTE.text, F(600, 22));
+    // The seven nights, graded.
+    text('THE SEVEN NIGHTS', FIELD.width / 2, 232, PALETTE.muted, F(700, 16));
+    const gw = 100;
+    const ggap = 10;
+    const gx0 = FIELD.width / 2 - (7 * gw + 6 * ggap) / 2;
+    for (let n = 1; n <= NIGHTS_TO_WIN; n += 1) {
+      const x = gx0 + (n - 1) * (gw + ggap);
+      fillRound(x, 242, gw, 58, 10, PALETTE.card);
+      text(`NIGHT ${n}`, x + gw / 2, 266, PALETTE.muted, F(600, 13));
+      text(state.grades[n] || '—', x + gw / 2, 292, gradeColor(state.grades[n] || '—'), F(700, 26));
+    }
+    // The run, counted ten ways.
+    const mins = Math.floor(state.time / 60);
+    const secs = Math.floor(state.time % 60);
+    const stats = [
+      { label: 'SCORE', value: String(state.score) },
+      { label: 'MOTHS BURST', value: String(state.kills) },
+      { label: 'ACCURACY', value: `${accuracy(state)}%` },
+      { label: 'EMBERS FIRED', value: String(state.shotsFired) },
+      { label: 'FLAWLESS NIGHTS', value: String(state.flawlessNights) },
+      { label: 'NOVA FIRES', value: String(state.novaFires) },
+      { label: 'CHAIN HITS', value: String(state.chainHits) },
+      { label: 'WARD BLOCKS', value: String(state.wardBlocks) },
+      { label: 'ORBS SHOT DOWN', value: String(state.orbsShotDown) },
+      { label: 'TIME', value: `${mins}:${String(secs).padStart(2, '0')}` },
+    ];
+    const sw = 148;
+    const sgap = 8;
+    const sx0 = FIELD.width / 2 - (5 * sw + 4 * sgap) / 2;
+    stats.forEach((s, i) => {
+      const col = i % 5;
+      const row = Math.floor(i / 5);
+      const x = sx0 + col * (sw + sgap);
+      const y = 318 + row * 72;
+      fillRound(x, y, sw, 62, 10, PALETTE.card);
+      text(s.label, x + sw / 2, y + 22, PALETTE.muted, F(600, 12));
+      text(s.value, x + sw / 2, y + 48, PALETTE.text, F(700, 22));
+    });
+    // The feats: what this run earned, and what it did not.
+    text(`FEATS ${state.feats.length} / 10`, FIELD.width / 2, 482, PALETTE.lanternGlow, F(700, 16));
+    ctx.textAlign = 'left';
+    FEATS.forEach((f, i) => {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const x = FIELD.width / 2 - 380 + col * 390;
+      const y = 500 + row * 22;
+      const got = state.feats.includes(f.id);
+      text(got ? `✓ ${f.title}` : `· ${f.title}`, x, y, got ? PALETTE.lanternGlow : PALETTE.muted, F(600, 15));
+    });
+    ctx.textAlign = 'center';
+    text(`Best ${best}`, FIELD.width / 2, 624, PALETTE.muted, F(600, 18));
+    text('Press R or click to play again · Space for endless nights', FIELD.width / 2, 648, PALETTE.lanternGlow, F(700, 20));
     ctx.textAlign = 'left';
   }
 
   return {
-    draw(state, screen, best, muted, time) {
+    draw(state, screen, best, muted, time, records) {
       fitCanvas();
       const scale = Math.min(canvas.width / FIELD.width, canvas.height / FIELD.height);
       ctx.setTransform(scale, 0, 0, scale, 0, 0);
       ctx.clearRect(0, 0, FIELD.width, FIELD.height);
-      if (screen === SCREEN_TITLE) drawTitle(state, best);
+      if (screen === SCREEN_TITLE) drawTitle(state, best, records);
       else if (screen === SCREEN_UPGRADE) drawUpgrade(state, best);
       else if (screen === SCREEN_PAUSED) drawPaused(state);
       else if (screen === SCREEN_OVER) drawOver(state, best);

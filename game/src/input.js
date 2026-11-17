@@ -1,7 +1,7 @@
 // Keyboard and mouse, read fresh every frame. WASD or arrows move; the mouse aims; holding
 // the left button (or Space) fires. E spends 5 shards on a Lantern Flare; 1/2/3 pick an
-// upgrade card; P or Escape pauses; M mutes; R restarts from the end screens. Actions are
-// consumed once, movement is a live direction.
+// upgrade card, 4/5/6 pick a road to the next night; P or Escape pauses; M mutes;
+// R restarts from the end screens. Actions are consumed once, movement is a live direction.
 
 export const ACTION_CONFIRM = 1;
 export const ACTION_PAUSE = 2;
@@ -11,6 +11,9 @@ export const ACTION_PICK_1 = 16;
 export const ACTION_PICK_2 = 32;
 export const ACTION_PICK_3 = 64;
 export const ACTION_FLARE = 128;
+export const ACTION_PATH_1 = 256;
+export const ACTION_PATH_2 = 512;
+export const ACTION_PATH_3 = 1024;
 
 export function createInput(canvas) {
   const keys = new Set();
@@ -29,6 +32,9 @@ export function createInput(canvas) {
     Digit1: ACTION_PICK_1, Numpad1: ACTION_PICK_1,
     Digit2: ACTION_PICK_2, Numpad2: ACTION_PICK_2,
     Digit3: ACTION_PICK_3, Numpad3: ACTION_PICK_3,
+    Digit4: ACTION_PATH_1, Numpad4: ACTION_PATH_1,
+    Digit5: ACTION_PATH_2, Numpad5: ACTION_PATH_2,
+    Digit6: ACTION_PATH_3, Numpad6: ACTION_PATH_3,
   };
 
   function keyAction(code) {

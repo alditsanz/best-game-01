@@ -217,6 +217,73 @@ export const FLARE = {
   cooldown: 8,
 };
 
+/** The road to the next night: after every cleared night the keeper picks one of
+ * three paths. Each has an explicit toll and a gift, and each really changes the
+ * next night — a shrine hurries the garden but mends a heart, the market pre-lights
+ * the next lantern at the cost of a bigger quota, the quiet path asks nothing and
+ * gives nothing. `apply(state)` runs when the road is chosen. */
+export const PATHS = [
+  {
+    id: 'shrine',
+    title: 'Ember Shrine',
+    risk: 'Next night spawns 15% faster',
+    reward: 'Mend 1 heart now · +150 score',
+    apply: (s) => {
+      s.pathMod.spawnScale = 0.85;
+      s.player.hearts = Math.min(s.player.hearts + 1, s.player.maxHearts);
+      s.score += 150;
+    },
+  },
+  {
+    id: 'quiet',
+    title: 'Quiet Path',
+    risk: 'No toll',
+    reward: 'No gift — the garden rests',
+    apply: () => {},
+  },
+  {
+    id: 'market',
+    title: 'Moth Market',
+    risk: 'Next lantern needs +6 shards',
+    reward: '+5 shards pre-lit · +250 score',
+    apply: (s) => {
+      s.pathMod.quotaBonus = 6;
+      s.pathMod.headStart = 5;
+      s.score += 250;
+    },
+  },
+];
+
+/** The ten feats: deeds the game remembers and the dawn screen lists. */
+export const FEATS = [
+  { id: 'first-light', title: 'First Light', desc: 'Light the first lantern' },
+  { id: 'flawless-keeper', title: 'Flawless Keeper', desc: 'Clear a night without a hit' },
+  { id: 'nova-storm', title: 'Nova Storm', desc: 'Fire the Ember Nova 15 times in one run' },
+  { id: 'chain-master', title: 'Chain Master', desc: 'Chain 30 bursts in one run' },
+  { id: 'warden', title: 'Warden', desc: 'Block 3 hits with the Lantern Ward in one run' },
+  { id: 'mote-hunter', title: 'Mote Hunter', desc: 'Burst 50 motes in one run' },
+  { id: 'orb-breaker', title: 'Orb Breaker', desc: 'Shoot down 10 gloom orbs in one run' },
+  { id: 'sharpshooter', title: 'Sharpshooter', desc: 'Finish with accuracy 40% or better' },
+  { id: 'dawnbringer', title: 'Dawnbringer', desc: 'Light all seven lanterns' },
+  { id: 'full-hearts', title: 'Full Hearts', desc: 'Win with every heart intact' },
+];
+
+/** The four realms of the seven nights: two nights each, then the Dawn Gate alone. */
+export const REALMS = [
+  { id: 'hedge', name: 'Hedge Row', nights: 'Nights 1–2' },
+  { id: 'pond', name: 'Old Pond', nights: 'Nights 3–4' },
+  { id: 'orchard', name: 'Ember Orchard', nights: 'Nights 5–6' },
+  { id: 'dawn', name: 'Dawn Gate', nights: 'Night 7' },
+];
+
+export function realmForNight(night) {
+  if (night <= 2) return REALMS[0];
+  if (night <= 4) return REALMS[1];
+  if (night <= 6) return REALMS[2];
+  if (night === NIGHTS_TO_WIN) return REALMS[3];
+  return { id: 'beyond', name: 'Beyond Dawn', nights: `Night ${night}` };
+}
+
 /** Clearing a night without losing a heart pays a Flawless bonus. */
 export const FLAWLESS_BONUS = 250;
 
@@ -346,3 +413,6 @@ export const FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif';
 
 /** Where the best score is kept between visits (this browser only). */
 export const BEST_KEY = 'emberkeeper.best';
+
+/** Where the last three finished runs are kept (scores, newest first). */
+export const RUNS_KEY = 'emberkeeper.runs';

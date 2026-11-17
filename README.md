@@ -15,6 +15,8 @@ them with embers, gather their light, and light all seven lanterns before dawn.
 - **E** — Lantern Flare: spend 5 shards from the lantern meter to burst every
   moth and gloom orb nearby (8s cooldown) — safety bought with progress
 - **1 / 2 / 3 or click a card** — pick an upgrade between nights
+- **4 / 5 / 6 or click a road** — pick a road to the next night: every road
+  has its toll and its gift (see below)
 - **P / Esc** — pause · **M** — mute · **R** — restart
 
 Each night has a shard quota: fill the lantern meter and the next lantern
@@ -45,17 +47,43 @@ and the garden never wins for you again — it only gets harder.
 Score comes from bursts (with a combo multiplier for quick successive kills),
 shards, and night bonuses; clearing a night without losing a heart pays a
 Flawless +250. The victory and game-over screens show your ember accuracy —
-hits over embers fired. The best score is kept in the browser. Hold the
+hits over embers fired. The best score is kept in the browser, along with the
+last three runs. Hold the
 combo at its max and the lantern surges — embers hit +1 harder for a few
 seconds. The last night is the Dawn Rush: the garden spawns faster and the
 moth cap rises, so hold the line until dawn.
+
+## The road to the next night
+
+After every cleared night you pick two things: one blessing (above) and one
+of three roads to the next night — each with its toll written out and its gift
+written out, and each really changing the night ahead:
+
+- **Ember Shrine** — risk: the next night spawns 15% faster; gift: mend 1
+  heart now and +150 score.
+- **Quiet Path** — no toll, no gift; the garden rests.
+- **Moth Market** — risk: the next lantern needs +6 shards; gift: +5 shards
+  pre-lit on it and +250 score.
+
+The seven nights cross four realms — Hedge Row (nights 1–2), Old Pond (3–4),
+Ember Orchard (5–6), Dawn Gate (night 7) — and the road screen shows where
+you are on the map. Every cleared night earns a grade from the hits you took
+(S for untouched, A for one hit, B for two, C for three or more), and the dawn
+screen lists all seven grades, the run counted ten ways (score, moths burst,
+accuracy, embers fired, flawless nights, Nova fires, chain hits, ward blocks,
+orbs shot down, time), and the ten feats: First Light, Flawless Keeper, Nova
+Storm, Chain Master, Warden, Mote Hunter, Orb Breaker, Sharpshooter,
+Dawnbringer and Full Hearts. The play HUD shows the stakes (WIN light 7
+lanterns · LOSE 0 hearts), what is alive in the garden right now by kind, and
+what the next night will be.
 
 ## The game
 
 - A complete loop: title → 7 named nights with escalating moths, darters,
   wisps, splitters, motes, elders, spitters and fleeing lantern-moths →
   an enraging boss who changes what she summons and bursts in fury at low
-  health → 12 upgrade choices → victory or game-over screen → restart /
+  health → 12 upgrade choices + 3 roads between nights, each night graded
+  S/A/B/C → victory or game-over screen with 10 feats → restart /
   endless. Each night has its own name and twist: First Dark, Wisp Tide, the
   Matriarch Wakes, Spitter's Watch, Swarm Night, the Matriarch Returns, and
   the Dawn Rush finale.
@@ -80,15 +108,15 @@ Or open `game/index.html` directly in a browser.
 - `main.ts` — hands the entry in: copies `game/` + `screenshots/` to
   `/output` and writes `/output/dossier.json` via `vendor/makefun-game.ts`.
 - `game/index.html` — the page; `game/src/` — one job per file:
-  `config.js` (tuning + palette + upgrades), `random.js` (seeded RNG),
+  `config.js` (tuning + palette + upgrades + roads + feats + realms), `random.js` (seeded RNG),
   `audio.js` (synth SFX + pad), `input.js` (keyboard + mouse),
-  `world.js` (entities, nights, boss, upgrades, collisions, scoring),
+  `world.js` (entities, nights, boss, upgrades, roads, grades, feats, collisions, scoring),
   `render.js` (garden, keeper, moths, HUD, screens), `shots.js` (staged
   screenshot scenes, played by an autopilot on the real rules),
   `main.js` (boot + fixed-step loop + screens).
 - `vendor/makefun-game.ts` — the kit's dossier library, unchanged.
 - `screenshots/` — 1-start.jpg (title), 2-play.jpg (night play + HUD),
-  3-upgrade.jpg (upgrade choice), 4-dawn.jpg (victory).
+  3-upgrade.jpg (blessing + road choice), 4-dawn.jpg (victory: grades, stats, feats).
 - `LICENSE` — MIT.
 
 ## Notes

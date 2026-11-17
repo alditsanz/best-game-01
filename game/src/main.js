@@ -5,12 +5,12 @@
 //
 // ?seed=N fixes the garden's pattern. ?shot=start|play|upgrade|win (with &seed=N) stages that
 // scene instead of running the loop, paints it twice and sets window.__shotReady for a screenshot.
-import { BEST_KEY, FIELD, NIGHTS_TO_WIN, STEP, nightTheme } from './config.js';
+import { BEST_KEY, FIELD, NIGHTS_TO_WIN, RUNS_KEY, STEP, nightTheme } from './config.js';
 import { createRandom } from './random.js';
 import { createAudio } from './audio.js';
 import { createWorld, EVENT_BOSS, EVENT_BURST, EVENT_DESPERATE, EVENT_ENRAGE, EVENT_FLARE, EVENT_HIT, EVENT_NIGHT_CLEAR, EVENT_NOVA, EVENT_OVER, EVENT_PICKUP, EVENT_SPIT, EVENT_WARD, EVENT_WIN } from './world.js';
-import { ACTION_CONFIRM, ACTION_FLARE, ACTION_MUTE, ACTION_PAUSE, ACTION_PICK_1, ACTION_PICK_2, ACTION_PICK_3, ACTION_RESTART, createInput } from './input.js';
-import { CARD, createRenderer, SCREEN_OVER, SCREEN_PAUSED, SCREEN_PLAY, SCREEN_TITLE, SCREEN_UPGRADE, SCREEN_WIN } from './render.js';
+import { ACTION_CONFIRM, ACTION_FLARE, ACTION_MUTE, ACTION_PATH_1, ACTION_PATH_2, ACTION_PATH_3, ACTION_PAUSE, ACTION_PICK_1, ACTION_PICK_2, ACTION_PICK_3, ACTION_RESTART, createInput } from './input.js';
+import { CARD, PATH_CARD, createRenderer, SCREEN_OVER, SCREEN_PAUSED, SCREEN_PLAY, SCREEN_TITLE, SCREEN_UPGRADE, SCREEN_WIN } from './render.js';
 import { stageShot } from './shots.js';
 
 /** The longest frame the loop catches up on; a longer stall (a hidden tab) is dropped, not replayed. */
@@ -43,6 +43,24 @@ function saveBest(value) {
   }
 }
 
+/** The last three finished runs, newest first — shown on the title screen. */
+function readRuns() {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(RUNS_KEY) ?? '[]');
+    return Array.isArray(parsed) ? parsed.filter((n) => Number.isFinite(n)).slice(0, 3) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRuns(runs) {
+  try {
+    window.localStorage.setItem(RUNS_KEY, JSON.stringify(runs.slice(0, 3)));
+  } catch {
+    // See saveBest.
+  }
+}
+
 function runShot(name) {
   const scene = stageShot(name, world);
   let painted = 0;
@@ -59,6 +77,7 @@ function runGame() {
   const input = createInput(canvas);
   let screen = SCREEN_TITLE;
   let best = readBest();
+  let runs = readRuns();
   let accumulator = 0;
   let last = performance.now();
   let endless = false;
@@ -92,20 +111,21 @@ function runGame() {
       best = world.state.score;
       saveBest(best);
     }
+    runs = [world.state.score, ...runs].slice(0, 3);
+    saveRuns(runs);
   }
 
   function nightCleared() {
-    world.rollUpgrades();
+    world.rollBetweenNights();
     screen = SCREEN_UPGRADE;
     audio.lantern();
-    announce(`Night ${world.state.night} done. Choose one blessing.`);
+    announce(`Night ${world.state.night} done. Choose one blessing and one road.`);
   }
 
-  function pickUpgrade(index) {
-    const card = world.state.offer[index];
-    if (!card) return;
-    if (!world.applyUpgrade(card.id)) return;
-    audio.upgrade();
+  /** Once a blessing AND a road are picked, the next night begins. */
+  function advanceWhenBothPicked() {
+    if (!world.state.pickedUpgrade || !world.state.pickedPath) return;
+    world.clearBetweenNights();
     world.resetNight(world.state.night + 1);
     screen = SCREEN_PLAY;
     const theme = nightTheme(world.state.night);
@@ -114,6 +134,22 @@ function runGame() {
       : world.state.night > NIGHTS_TO_WIN
         ? `Endless night ${world.state.night}. ${theme.name} — ${theme.blurb}. ${world.state.player.hearts} hearts.`
         : `Night ${world.state.night}. ${theme.name} — ${theme.blurb}. ${world.state.player.hearts} hearts.`);
+  }
+
+  function pickUpgrade(index) {
+    const card = world.state.offer[index];
+    if (!card || world.state.pickedUpgrade) return;
+    if (!world.applyUpgrade(card.id)) return;
+    audio.upgrade();
+    advanceWhenBothPicked();
+  }
+
+  function pickPath(index) {
+    const road = world.state.paths[index];
+    if (!road || world.state.pickedPath) return;
+    if (!world.applyPath(road.id)) return;
+    audio.upgrade();
+    advanceWhenBothPicked();
   }
 
   function handleActions() {
@@ -152,6 +188,9 @@ function runGame() {
       if (actions & ACTION_PICK_1) pickUpgrade(0);
       else if (actions & ACTION_PICK_2) pickUpgrade(1);
       else if (actions & ACTION_PICK_3) pickUpgrade(2);
+      else if (actions & ACTION_PATH_1) pickPath(0);
+      else if (actions & ACTION_PATH_2) pickPath(1);
+      else if (actions & ACTION_PATH_3) pickPath(2);
       return;
     }
     if (actions & ACTION_PAUSE && screen === SCREEN_PLAY) {
@@ -170,7 +209,8 @@ function runGame() {
     audio.unlock();
     if (screen === SCREEN_TITLE || screen === SCREEN_OVER) startGame();
     else if (screen === SCREEN_WIN) startGame(); else if (screen === SCREEN_UPGRADE) {
-      // A click on a card picks it: cards sit in a row across the middle.
+      // A click on a card picks it; a click on a road picks it: cards sit in a
+      // row across the middle, roads in a row below them.
       const aim = input.aim();
       const cards = world.state.offer;
       const { w: cw, h: ch, gap, y: y0 } = CARD;
@@ -180,6 +220,17 @@ function runGame() {
         const x = x0 + i * (cw + gap);
         if (aim.x >= x && aim.x <= x + cw && aim.y >= y0 && aim.y <= y0 + ch) {
           pickUpgrade(i);
+          return;
+        }
+      }
+      const roads = world.state.paths;
+      const { w: rw, h: rh, gap: rgap, y: ry0 } = PATH_CARD;
+      const rtotal = roads.length * rw + (roads.length - 1) * rgap;
+      const rx0 = FIELD.width / 2 - rtotal / 2;
+      for (let i = 0; i < roads.length; i += 1) {
+        const x = rx0 + i * (rw + rgap);
+        if (aim.x >= x && aim.x <= x + rw && aim.y >= ry0 && aim.y <= ry0 + rh) {
+          pickPath(i);
           return;
         }
       }
@@ -236,7 +287,7 @@ function runGame() {
     } else {
       accumulator = 0;
     }
-    renderer.draw(world.state, screen, best, audio.isMuted(), world.state.time);
+    renderer.draw(world.state, screen, best, audio.isMuted(), world.state.time, { best, runs });
   }
 
   // Leaving the tab pauses a running game rather than letting moths close in unseen.

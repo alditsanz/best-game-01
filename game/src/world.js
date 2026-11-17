@@ -9,6 +9,7 @@ import {
   CHAIN,
   Darter,
   Elder,
+  FEATS,
   FIELD,
   FLARE,
   FLAWLESS_BONUS,
@@ -19,6 +20,7 @@ import {
   NIGHTS_TO_WIN,
   NOVA,
   ORBIT,
+  PATHS,
   PLAYER,
   SHARD,
   Spitter,
@@ -75,6 +77,18 @@ function freshUpgrades() {
   };
 }
 
+function freshPathMod() {
+  return { spawnScale: 1, quotaBonus: 0, headStart: 0 };
+}
+
+/** A night's grade from the hits taken clearing it: untouched is S, three or more is C. */
+function gradeForNight(hits) {
+  if (hits <= 0) return 'S';
+  if (hits === 1) return 'A';
+  if (hits === 2) return 'B';
+  return 'C';
+}
+
 export function createWorld(random) {
   const state = {
     player: { x: FIELD.width / 2, y: FIELD.height / 2, hearts: PLAYER.maxHearts, invuln: 0, fireTimer: 0, aimAngle: -Math.PI / 2 },
@@ -119,14 +133,53 @@ export function createWorld(random) {
     endless: false,
     time: 0,
     kills: 0,
+    motesBurst: 0,
     nightCleared: false,
     offer: [],
+    paths: [],
+    pickedUpgrade: null,
+    pickedPath: null,
+    pathMod: freshPathMod(),
+    /** Spawn-interval multiplier for this night, set by the road taken (1 = none). */
+    nightSpawnScale: 1,
+    /** Grade per cleared night, keyed by night number: S/A/B/C. */
+    grades: {},
+    /** Feat ids unlocked this run, in unlock order. */
+    feats: [],
   };
+
+  /** Unlock a feat once; silently ignores unknown ids and repeats. */
+  function unlockFeat(id) {
+    if (!FEATS.some((f) => f.id === id)) return;
+    if (!state.feats.includes(id)) state.feats.push(id);
+  }
+
+  /** Check every feat against the run so far. `final` is 'win' on dawn, 'over' on
+   * defeat, anything else mid-run: the finishing feats only unlock on a win. */
+  function checkFeats(final) {
+    if (state.grades[1]) unlockFeat('first-light');
+    if (state.flawlessNights >= 1) unlockFeat('flawless-keeper');
+    if (state.novaFires >= 15) unlockFeat('nova-storm');
+    if (state.chainHits >= 30) unlockFeat('chain-master');
+    if (state.wardBlocks >= 3) unlockFeat('warden');
+    if (state.motesBurst >= 50) unlockFeat('mote-hunter');
+    if (state.orbsShotDown >= 10) unlockFeat('orb-breaker');
+    if (final === 'win') {
+      unlockFeat('dawnbringer');
+      if (state.shotsFired > 0 && Math.round((100 * state.shotsHit) / state.shotsFired) >= 40) unlockFeat('sharpshooter');
+      if (state.player.hearts >= state.player.maxHearts) unlockFeat('full-hearts');
+    }
+  }
 
   function resetNight(night) {
     state.night = night;
-    state.quota = quotaForNight(night);
-    state.shardsCollected = 0;
+    // The chosen road shapes this night: a bigger quota, a head start of
+    // pre-lit shards, or nothing at all — then the road is spent. The spawn
+    // toll outlives the reset: it paces the whole night, so it is kept apart.
+    state.quota = quotaForNight(night) + state.pathMod.quotaBonus;
+    state.shardsCollected = state.pathMod.headStart;
+    state.nightSpawnScale = state.pathMod.spawnScale;
+    state.pathMod = freshPathMod();
     state.spawnTimer = 0.8;
     state.bossSpawnTimer = 0;
     state.bossAnnounced = false;
@@ -182,6 +235,14 @@ export function createWorld(random) {
     state.endless = false;
     state.time = 0;
     state.offer = [];
+    state.paths = [];
+    state.pickedUpgrade = null;
+    state.pickedPath = null;
+    state.pathMod = freshPathMod();
+    state.nightSpawnScale = 1;
+    state.grades = {};
+    state.feats = [];
+    state.motesBurst = 0;
     resetNight(1);
   }
 
@@ -288,6 +349,7 @@ export function createWorld(random) {
     const moth = state.moths[index];
     state.moths.splice(index, 1);
     state.kills += 1;
+    if (moth.kind === KIND_MOTE) state.motesBurst += 1;
     state.combo = Math.min(state.combo + COMBO.step, state.upgrades.comboMax);
     state.comboTimer = state.upgrades.comboWindow;
     // Max combo ignites a Lantern Surge: +1 ember damage for a few seconds.
@@ -851,8 +913,38 @@ export function createWorld(random) {
       state.player.maxHearts = state.upgrades.maxHearts;
       state.player.hearts = Math.min(state.player.hearts + 1, state.upgrades.maxHearts);
     }
-    state.offer = [];
+    // The offer stays on screen until the road is chosen too — the keeper picks
+    // a blessing AND a road before the next night begins.
+    state.pickedUpgrade = id;
     return true;
+  }
+
+  /** Three roads to the next night, in the shrine/quiet/market order. */
+  function rollPaths() {
+    state.paths = PATHS.slice();
+    return state.paths;
+  }
+
+  function applyPath(id) {
+    const found = state.paths.find((p) => p.id === id);
+    if (!found) return false;
+    found.apply(state);
+    state.pickedPath = id;
+    return true;
+  }
+
+  /** Roll the between-nights choices: three blessings and three roads. */
+  function rollBetweenNights() {
+    rollUpgrades();
+    rollPaths();
+  }
+
+  /** Clear the between-nights choices once both are picked and the night advances. */
+  function clearBetweenNights() {
+    state.offer = [];
+    state.paths = [];
+    state.pickedUpgrade = null;
+    state.pickedPath = null;
   }
 
   /** Advance the world one fixed step. In attract mode the garden drifts on its own. */
@@ -900,7 +992,8 @@ export function createWorld(random) {
     }
     state.spawnTimer -= dt;
     if (state.spawnTimer <= 0 && state.moths.length < mothCapForNight(state.night)) {
-      state.spawnTimer = Math.max(MOTH.spawnInterval * Math.pow(MOTH.spawnScale, state.night - 1), MOTH.minSpawnInterval) * spawnScaleForNight(state.night) * random.range(0.75, 1.25);
+      // A shrine road hurries the garden: the spawn interval shrinks by its toll.
+      state.spawnTimer = Math.max(MOTH.spawnInterval * Math.pow(MOTH.spawnScale, state.night - 1), MOTH.minSpawnInterval) * spawnScaleForNight(state.night) * state.nightSpawnScale * random.range(0.75, 1.25);
       spawnMoth();
     }
 
@@ -912,22 +1005,28 @@ export function createWorld(random) {
     events = stepShards(dt, events);
     stepParticles(dt);
 
-    if (events & EVENT_OVER) return events;
+    if (events & EVENT_OVER) {
+      checkFeats('over');
+      return events;
+    }
     const bossGone = !isBossNight || (state.bossAnnounced && state.boss === null);
     if (state.shardsCollected >= state.quota && bossGone && !state.nightCleared) {
       state.nightCleared = true;
       state.score += 100 * state.night;
+      // The night earns its grade from the hits taken clearing it.
+      state.grades[state.night] = gradeForNight(state.hitsThisNight);
       // A night cleared without losing a heart pays the Flawless bonus.
       if (state.hitsThisNight === 0) {
         state.score += FLAWLESS_BONUS;
         state.flawlessNights += 1;
         addText(state.player.x, state.player.y - 30, `FLAWLESS! +${FLAWLESS_BONUS}`, '#ffd97a');
       }
+      checkFeats(state.night === NIGHTS_TO_WIN && !state.endless ? 'win' : 'night');
       if (state.night === NIGHTS_TO_WIN && !state.endless) return events | EVENT_WIN;
       return events | EVENT_NIGHT_CLEAR;
     }
     return events;
   }
 
-  return { state, reset, resetNight, step, flare, rollUpgrades, applyUpgrade };
+  return { state, reset, resetNight, step, flare, rollUpgrades, applyUpgrade, rollPaths, applyPath, rollBetweenNights, clearBetweenNights };
 }

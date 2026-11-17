@@ -94,6 +94,18 @@ function runUntil(world, stop, limitSeconds, sloppy, spareBoss) {
   return 0;
 }
 
+/** Between nights the keeper takes the first blessing offered and the Quiet Path —
+ * the neutral road — so the staged scenes play the same game as before. */
+function advanceNight(world) {
+  world.rollBetweenNights();
+  const first = world.state.offer[0];
+  if (first) world.applyUpgrade(first.id);
+  const quiet = world.state.paths[1];
+  if (quiet) world.applyPath(quiet.id);
+  world.clearBetweenNights();
+  world.resetNight(world.state.night + 1);
+}
+
 /**
  * Set `world` to the named scene (start, play, upgrade or win; any other name is start)
  * and return the screen to draw over it and the best score to show.
@@ -115,10 +127,7 @@ export function stageShot(name, world) {
       );
       if (ev & EVENT_OVER) return { screen: SCREEN_OVER, best: world.state.score };
       if (!(ev & EVENT_NIGHT_CLEAR)) return { screen: SCREEN_PLAY, best: world.state.score };
-      world.rollUpgrades();
-      const first = world.state.offer[0];
-      if (first) world.applyUpgrade(first.id);
-      world.resetNight(world.state.night + 1);
+      advanceNight(world);
     }
     runUntil(
       world,
@@ -133,7 +142,7 @@ export function stageShot(name, world) {
   if (name === 'upgrade') {
     const events = runUntil(world, (e) => (e & EVENT_NIGHT_CLEAR) !== 0 || (e & EVENT_OVER) !== 0, LIMIT_SECONDS);
     if (events & EVENT_NIGHT_CLEAR) {
-      world.rollUpgrades();
+      world.rollBetweenNights();
       return { screen: SCREEN_UPGRADE, best: world.state.score };
     }
     return { screen: SCREEN_OVER, best: world.state.score };
@@ -150,10 +159,7 @@ export function stageShot(name, world) {
     if (events & EVENT_WIN) return { screen: SCREEN_WIN, best: world.state.score };
     if (events & EVENT_OVER) return { screen: SCREEN_OVER, best: world.state.score };
     if (events & EVENT_NIGHT_CLEAR) {
-      world.rollUpgrades();
-      const first = world.state.offer[0];
-      if (first) world.applyUpgrade(first.id);
-      world.resetNight(world.state.night + 1);
+      advanceNight(world);
       continue;
     }
     return { screen: SCREEN_OVER, best: world.state.score };
