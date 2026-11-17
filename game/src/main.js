@@ -5,12 +5,12 @@
 //
 // ?seed=N fixes the garden's pattern. ?shot=start|play|upgrade|win (with &seed=N) stages that
 // scene instead of running the loop, paints it twice and sets window.__shotReady for a screenshot.
-import { BEST_KEY, FIELD, NIGHTS_TO_WIN, RUNS_KEY, STEP, nightTheme } from './config.js';
+import { BEST_KEY, DIFF_KEY, FIELD, NIGHTS_TO_WIN, RUNS_KEY, STEP, difficultyById, nightTheme } from './config.js';
 import { createRandom } from './random.js';
 import { createAudio } from './audio.js';
 import { createWorld, EVENT_BOSS, EVENT_BURST, EVENT_DESPERATE, EVENT_ENRAGE, EVENT_FLARE, EVENT_HIT, EVENT_NIGHT_CLEAR, EVENT_NOVA, EVENT_OVER, EVENT_PICKUP, EVENT_SPIT, EVENT_WARD, EVENT_WIN } from './world.js';
 import { ACTION_CONFIRM, ACTION_FLARE, ACTION_MUTE, ACTION_PATH_1, ACTION_PATH_2, ACTION_PATH_3, ACTION_PAUSE, ACTION_PICK_1, ACTION_PICK_2, ACTION_PICK_3, ACTION_RESTART, createInput } from './input.js';
-import { CARD, PATH_CARD, createRenderer, SCREEN_OVER, SCREEN_PAUSED, SCREEN_PLAY, SCREEN_TITLE, SCREEN_UPGRADE, SCREEN_WIN } from './render.js';
+import { CARD, DIFF_CARD, PATH_CARD, createRenderer, SCREEN_OVER, SCREEN_PAUSED, SCREEN_PLAY, SCREEN_TITLE, SCREEN_UPGRADE, SCREEN_WIN } from './render.js';
 import { stageShot } from './shots.js';
 
 /** The longest frame the loop catches up on; a longer stall (a hidden tab) is dropped, not replayed. */
@@ -24,6 +24,7 @@ const seed = Number.isInteger(seedParam) ? seedParam : Math.floor(Math.random() 
 const canvas = document.getElementById('game');
 const status = document.getElementById('status');
 const world = createWorld(createRandom(seed));
+world.setDifficulty(readDifficulty());
 const renderer = createRenderer(canvas);
 const audio = createAudio();
 
@@ -56,6 +57,24 @@ function readRuns() {
 function saveRuns(runs) {
   try {
     window.localStorage.setItem(RUNS_KEY, JSON.stringify(runs.slice(0, 3)));
+  } catch {
+    // See saveBest.
+  }
+}
+
+/** The chosen difficulty, kept between visits; anything unknown is Keeper. */
+function readDifficulty() {
+  try {
+    const stored = window.localStorage.getItem(DIFF_KEY) ?? 'keeper';
+    return difficultyById(stored).id;
+  } catch {
+    return 'keeper';
+  }
+}
+
+function saveDifficulty(id) {
+  try {
+    window.localStorage.setItem(DIFF_KEY, id);
   } catch {
     // See saveBest.
   }
@@ -94,7 +113,8 @@ function runGame() {
     screen = SCREEN_PLAY;
     audio.unlock();
     audio.startPad();
-    announce(`Playing. Night 1 of 7. ${world.state.player.hearts} hearts.`);
+    const diff = difficultyById(world.state.difficulty);
+    announce(`Playing ${diff.title}. Night 1 of 7. ${world.state.player.hearts} hearts.`);
   }
 
   function endGame(won) {
@@ -152,6 +172,16 @@ function runGame() {
     advanceWhenBothPicked();
   }
 
+  /** On the title screen, 1 / 2 / 3 pick a difficulty without starting the game. */
+  function pickDifficulty(index) {
+    const ids = ['rookie', 'keeper', 'inferno'];
+    const id = ids[index];
+    if (!id || !world.setDifficulty(id)) return;
+    saveDifficulty(id);
+    const d = difficultyById(id);
+    announce(`${d.title} — ${d.tagline}. Spawn ×${d.spawnRate}, ${d.hearts} hearts, score ×${d.scoreMult}. Press Space to begin.`);
+  }
+
   function handleActions() {
     const actions = input.takeActions();
     if (actions & ACTION_MUTE) {
@@ -166,6 +196,9 @@ function runGame() {
       }
     }
     if (screen === SCREEN_TITLE) {
+      if (actions & ACTION_PICK_1) pickDifficulty(0);
+      else if (actions & ACTION_PICK_2) pickDifficulty(1);
+      else if (actions & ACTION_PICK_3) pickDifficulty(2);
       if (actions & ACTION_CONFIRM) startGame();
       return;
     }
@@ -207,7 +240,23 @@ function runGame() {
   function handleClicks() {
     if (!input.takeClick()) return;
     audio.unlock();
-    if (screen === SCREEN_TITLE || screen === SCREEN_OVER) startGame();
+    if (screen === SCREEN_TITLE) {
+      // A click on a difficulty card picks it; anywhere else starts the game.
+      const aim = input.aim();
+      const { w: dw, h: dh, gap: dgap, y: dy0 } = DIFF_CARD;
+      const dtotal = 3 * dw + 2 * dgap;
+      const dx0 = FIELD.width / 2 - dtotal / 2;
+      for (let i = 0; i < 3; i += 1) {
+        const x = dx0 + i * (dw + dgap);
+        if (aim.x >= x && aim.x <= x + dw && aim.y >= dy0 && aim.y <= dy0 + dh) {
+          pickDifficulty(i);
+          return;
+        }
+      }
+      startGame();
+      return;
+    }
+    if (screen === SCREEN_OVER) startGame();
     else if (screen === SCREEN_WIN) startGame(); else if (screen === SCREEN_UPGRADE) {
       // A click on a card picks it; a click on a road picks it: cards sit in a
       // row across the middle, roads in a row below them.
@@ -299,7 +348,7 @@ function runGame() {
     }
   });
 
-  announce('Emberkeeper. Press Space or click to start.');
+  announce('Emberkeeper. Press 1, 2 or 3 to choose your keeping, Space or click to start.');
   requestAnimationFrame(frame);
 }
 

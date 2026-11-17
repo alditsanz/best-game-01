@@ -7,6 +7,7 @@ import {
   BOSS,
   COMBO,
   CHAIN,
+  DIFFICULTIES,
   Darter,
   Elder,
   FEATS,
@@ -27,6 +28,7 @@ import {
   Splitter,
   UPGRADES,
   Wisp,
+  difficultyById,
   mothCapForNight,
   nightTheme,
   quotaForNight,
@@ -142,6 +144,12 @@ export function createWorld(random) {
     pathMod: freshPathMod(),
     /** Spawn-interval multiplier for this night, set by the road taken (1 = none). */
     nightSpawnScale: 1,
+    /** The chosen difficulty: 'rookie', 'keeper' (the default) or 'inferno'.
+     * spawnMult stretches the spawn interval (Rookie 1.25, Inferno 0.8);
+     * scoreMult scales every point the run earns (Inferno 1.5). */
+    difficulty: 'keeper',
+    spawnMult: 1,
+    scoreMult: 1,
     /** Grade per cleared night, keyed by night number: S/A/B/C. */
     grades: {},
     /** Feat ids unlocked this run, in unlock order. */
@@ -152,6 +160,23 @@ export function createWorld(random) {
   function unlockFeat(id) {
     if (!FEATS.some((f) => f.id === id)) return;
     if (!state.feats.includes(id)) state.feats.push(id);
+  }
+
+  /** Every point the run earns, scaled by the difficulty: Keeper pays the
+   * base amount, Inferno 1.5×, Rookie the base amount. */
+  function scoreAdd(n) {
+    state.score += Math.round(n * state.scoreMult);
+  }
+
+  /** Choose the difficulty for the next run: unknown ids are refused and the
+   * current difficulty stands. Call before reset(); reset() keeps it. */
+  function setDifficulty(id) {
+    const found = DIFFICULTIES.find((d) => d.id === id);
+    if (!found) return false;
+    state.difficulty = found.id;
+    state.spawnMult = 1 / found.spawnRate;
+    state.scoreMult = found.scoreMult;
+    return true;
   }
 
   /** Check every feat against the run so far. `final` is 'win' on dawn, 'over' on
@@ -196,11 +221,17 @@ export function createWorld(random) {
   function reset() {
     state.player.x = FIELD.width / 2;
     state.player.y = FIELD.height / 2;
-    state.player.hearts = PLAYER.maxHearts;
-    state.player.maxHearts = PLAYER.maxHearts;
+    // The difficulty survives the reset: Rookie carries 4 hearts, Keeper and
+    // Inferno 3 — and the spawn/score multipliers come with it.
+    const def = difficultyById(state.difficulty);
+    state.spawnMult = 1 / def.spawnRate;
+    state.scoreMult = def.scoreMult;
+    state.player.hearts = def.hearts;
+    state.player.maxHearts = def.hearts;
     state.player.invuln = 0;
     state.player.fireTimer = 0;
     state.upgrades = freshUpgrades();
+    state.upgrades.maxHearts = def.hearts;
     state.embers.length = 0;
     state.moths.length = 0;
     state.orbs.length = 0;
@@ -360,7 +391,7 @@ export function createWorld(random) {
       burst(state.player.x, state.player.y, '#ffb347', 10, 160);
     }
     const gained = 10 * state.combo;
-    state.score += gained;
+    scoreAdd(gained);
     const darter = moth.kind === KIND_DARTER;
     const wisp = moth.kind === KIND_WISP;
     const splitter = moth.kind === KIND_SPLITTER;
@@ -530,7 +561,7 @@ export function createWorld(random) {
   /** The Matriarch falls: score, a burst, and her 30 shards. Shared by embers and the flare. */
   function killBoss(events) {
     const b = state.boss;
-    state.score += 200 * Math.max(state.combo, 1);
+    scoreAdd(200 * Math.max(state.combo, 1));
     burst(b.x, b.y, '#b8579e', 40, 260);
     dropShards(b.x, b.y, BOSS.shards);
     addText(b.x, b.y - 60, '+200', '#ffe9a8');
@@ -863,7 +894,7 @@ export function createWorld(random) {
       if (d2 < (PLAYER.radius + SHARD.radius) * (PLAYER.radius + SHARD.radius)) {
         state.shards.splice(i, 1);
         state.shardsCollected += SHARD.value;
-        state.score += 5;
+        scoreAdd(5);
         events |= EVENT_PICKUP;
         continue;
       }
@@ -928,7 +959,10 @@ export function createWorld(random) {
   function applyPath(id) {
     const found = state.paths.find((p) => p.id === id);
     if (!found) return false;
+    // A road's gift is score too, so it pays at the difficulty's rate.
+    const before = state.score;
     found.apply(state);
+    state.score = before + Math.round((state.score - before) * state.scoreMult);
     state.pickedPath = id;
     return true;
   }
@@ -993,7 +1027,8 @@ export function createWorld(random) {
     state.spawnTimer -= dt;
     if (state.spawnTimer <= 0 && state.moths.length < mothCapForNight(state.night)) {
       // A shrine road hurries the garden: the spawn interval shrinks by its toll.
-      state.spawnTimer = Math.max(MOTH.spawnInterval * Math.pow(MOTH.spawnScale, state.night - 1), MOTH.minSpawnInterval) * spawnScaleForNight(state.night) * state.nightSpawnScale * random.range(0.75, 1.25);
+      // The difficulty stretches it too: Rookie spawns slower, Inferno faster.
+      state.spawnTimer = Math.max(MOTH.spawnInterval * Math.pow(MOTH.spawnScale, state.night - 1), MOTH.minSpawnInterval) * spawnScaleForNight(state.night) * state.nightSpawnScale * state.spawnMult * random.range(0.75, 1.25);
       spawnMoth();
     }
 
@@ -1012,12 +1047,12 @@ export function createWorld(random) {
     const bossGone = !isBossNight || (state.bossAnnounced && state.boss === null);
     if (state.shardsCollected >= state.quota && bossGone && !state.nightCleared) {
       state.nightCleared = true;
-      state.score += 100 * state.night;
+      scoreAdd(100 * state.night);
       // The night earns its grade from the hits taken clearing it.
       state.grades[state.night] = gradeForNight(state.hitsThisNight);
       // A night cleared without losing a heart pays the Flawless bonus.
       if (state.hitsThisNight === 0) {
-        state.score += FLAWLESS_BONUS;
+        scoreAdd(FLAWLESS_BONUS);
         state.flawlessNights += 1;
         addText(state.player.x, state.player.y - 30, `FLAWLESS! +${FLAWLESS_BONUS}`, '#ffd97a');
       }
@@ -1028,5 +1063,5 @@ export function createWorld(random) {
     return events;
   }
 
-  return { state, reset, resetNight, step, flare, rollUpgrades, applyUpgrade, rollPaths, applyPath, rollBetweenNights, clearBetweenNights };
+  return { state, reset, resetNight, step, flare, setDifficulty, rollUpgrades, applyUpgrade, rollPaths, applyPath, rollBetweenNights, clearBetweenNights };
 }

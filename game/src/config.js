@@ -9,6 +9,25 @@ export const STEP = 1 / 60;
 /** Nights to light before dawn breaks and the game is won. */
 export const NIGHTS_TO_WIN = 7;
 
+/** The three difficulties: how fast the garden spawns, how many hearts the
+ * keeper carries, and what the score is worth. Keeper is the intended game —
+ * the other two only scale those three numbers, so the default path plays
+ * exactly as before. Rookie spawns at 0.8× the rate with 4 hearts; Inferno
+ * spawns at 1.25× and pays 1.5× score. */
+export const DIFFICULTIES = [
+  { id: 'rookie', title: 'Rookie', tagline: 'Gentler garden', spawnRate: 0.8, scoreMult: 1, hearts: 4 },
+  { id: 'keeper', title: 'Keeper', tagline: 'The intended game', spawnRate: 1, scoreMult: 1, hearts: 3 },
+  { id: 'inferno', title: 'Inferno', tagline: 'Relentless garden', spawnRate: 1.25, scoreMult: 1.5, hearts: 3 },
+];
+
+/** The difficulty for an id, or Keeper for anything unknown. */
+export function difficultyById(id) {
+  return DIFFICULTIES.find((d) => d.id === id) || DIFFICULTIES[1];
+}
+
+/** Where the chosen difficulty is kept between visits (this browser only). */
+export const DIFF_KEY = 'emberkeeper.difficulty';
+
 export const PLAYER = {
   radius: 16,
   speed: 300,

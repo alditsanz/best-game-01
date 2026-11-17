@@ -1,7 +1,8 @@
 // Keyboard and mouse, read fresh every frame. WASD or arrows move; the mouse aims; holding
-// the left button (or Space) fires. E spends 5 shards on a Lantern Flare; 1/2/3 pick an
-// upgrade card, 4/5/6 pick a road to the next night; P or Escape pauses; M mutes;
-// R restarts from the end screens. Actions are consumed once, movement is a live direction.
+// the left button (or Space) fires. E spends 5 shards on a Lantern Flare; 1/2/3 pick a
+// difficulty on the title screen and an upgrade card between nights, 4/5/6 pick a road
+// to the next night; P or Escape pauses; M mutes; R restarts from the end screens.
+// Actions are consumed once, movement is a live direction.
 
 export const ACTION_CONFIRM = 1;
 export const ACTION_PAUSE = 2;

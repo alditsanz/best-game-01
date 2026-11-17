@@ -14,7 +14,8 @@ them with embers, gather their light, and light all seven lanterns before dawn.
 - **Mouse** — aim · **Click / Space** — shoot embers
 - **E** — Lantern Flare: spend 5 shards from the lantern meter to burst every
   moth and gloom orb nearby (8s cooldown) — safety bought with progress
-- **1 / 2 / 3 or click a card** — pick an upgrade between nights
+- **1 / 2 / 3 or click a card** — pick a difficulty on the title screen, or
+  pick an upgrade between nights
 - **4 / 5 / 6 or click a road** — pick a road to the next night: every road
   has its toll and its gift (see below)
 - **P / Esc** — pause · **M** — mute · **R** — restart
@@ -37,8 +38,8 @@ the orb down; from night 5, slow old Elders drift in, tough at 3 hp but heavy
 with 4 shards. Every 3rd night a Gloom Matriarch boss guards the lantern — and
 below half health she enrages, moving faster and calling moths sooner; below a
 quarter she bursts in fury, firing one ring of gloom orbs in every direction —
-dodge it or shoot the orbs down. Three hearts; a touch costs one, unless a
-Lantern Ward eats the hit. Light all 7
+dodge it or shoot the orbs down. Keeper carries three hearts; a touch costs one, unless a
+Lantern Ward eats the hit (Rookie carries four). Light all 7
 lanterns and dawn breaks — you win. Lose all hearts and the light goes out.
 After a win, Space keeps playing endless nights: the modifiers keep
 rotating (Swarm, Wisp Tide, Spitter's Watch), a boss guards every 3rd night,
@@ -77,6 +78,24 @@ Dawnbringer and Full Hearts. The play HUD shows the stakes (WIN light 7
 lanterns · LOSE 0 hearts), what is alive in the garden right now by kind, and
 what the next night will be.
 
+## Difficulties
+
+Pick your keeping on the title screen (press 1 / 2 / 3 or click a card); the
+choice is remembered between visits. Only three numbers change — the garden,
+the nights, the boss and the upgrades are the same game on every tier:
+
+- **Rookie** — the garden spawns at 0.8× the rate, the keeper carries 4
+  hearts, score pays the base amount. For learning the garden.
+- **Keeper** — the intended game: full spawn rate, 3 hearts, base score.
+- **Inferno** — the garden spawns at 1.25× and every point pays 1.5× score,
+  still 3 hearts. For keepers who want the garden at its worst and the score
+  to prove it.
+
+The HUD names the tier and its score rate, and the victory and game-over
+screens record which tier the run was played on. Local autopilot measurement
+(15 seeds, first-pick upgrades): Keeper 15/15 wins, Rookie 15/15, Inferno
+14/15 — hard, not impossible.
+
 ## The game
 
 - A complete loop: title → 7 named nights with escalating moths, darters,
@@ -84,7 +103,8 @@ what the next night will be.
   an enraging boss who changes what she summons and bursts in fury at low
   health → 12 upgrade choices + 3 roads between nights, each night graded
   S/A/B/C → victory or game-over screen with 10 feats → restart /
-  endless. Each night has its own name and twist: First Dark, Wisp Tide, the
+  endless. Three difficulties (Rookie / Keeper / Inferno) scale only the
+  spawn rate, the hearts and the score rate. Each night has its own name and twist: First Dark, Wisp Tide, the
   Matriarch Wakes, Spitter's Watch, Swarm Night, the Matriarch Returns, and
   the Dawn Rush finale.
 - Original art drawn in code (no images) and original sound synthesised with

@@ -2,7 +2,7 @@
 // the HUD and the five screens (title, play, upgrade, paused, game over, victory). The
 // renderer never changes the world; it paints the state it is given.
 
-import { FEATS, FIELD, FONT, NIGHTS_TO_WIN, PALETTE, PLAYER, REALMS, nightTheme, realmForNight } from './config.js';
+import { DIFFICULTIES, FEATS, FIELD, FONT, NIGHTS_TO_WIN, PALETTE, PLAYER, REALMS, difficultyById, nightTheme, realmForNight } from './config.js';
 
 const TAU = Math.PI * 2;
 
@@ -21,6 +21,9 @@ export const CARD = { w: 300, h: 210, gap: 28, y: 148 };
 
 /** Road-card geometry (w/h/gap/top), shared by the upgrade screen and main.js's click picker. */
 export const PATH_CARD = { w: 300, h: 118, gap: 28, y: 412 };
+
+/** Difficulty-card geometry (w/h/gap/top), shared by the title screen and main.js's click picker. */
+export const DIFF_CARD = { w: 220, h: 76, gap: 16, y: 512 };
 
 function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
@@ -569,6 +572,8 @@ export function createRenderer(canvas) {
     const lines = [];
     lines.push({ str: `Score ${state.score}`, color: PALETTE.text, font: F(700, 26) });
     lines.push({ str: state.night > NIGHTS_TO_WIN ? `Endless Night ${state.night}` : `Night ${Math.min(state.night, NIGHTS_TO_WIN)} / ${NIGHTS_TO_WIN}`, color: PALETTE.muted, font: F(600, 18) });
+    const diff = difficultyById(state.difficulty);
+    lines.push({ str: `${diff.title} · Score ×${diff.scoreMult}`, color: PALETTE.muted, font: F(600, 15) });
     const theme = nightTheme(state.night);
     if (state.night !== NIGHTS_TO_WIN) lines.push({ str: `${theme.name} — ${theme.blurb}`, color: '#c77dff', font: F(700, 18) });
     if (state.combo > 1) lines.push({ str: `Combo ×${state.combo}`, color: '#ffb347', font: F(700, 22) });
@@ -641,18 +646,19 @@ export function createRenderer(canvas) {
   function drawTitle(state, best, records) {
     drawWorld(state, 0);
     dim();
-    panel(FIELD.width / 2 - 360, 76, 720, 568);
+    panel(FIELD.width / 2 - 360, 76, 720, 600);
+    const diff = difficultyById(state.difficulty);
     ctx.textAlign = 'center';
-    text('EMBERKEEPER', FIELD.width / 2, 156, PALETTE.lanternGlow, F(700, 64));
-    text('Keep the last lantern lit through seven nights.', FIELD.width / 2, 192, PALETTE.text, F(600, 22));
+    text('EMBERKEEPER', FIELD.width / 2, 150, PALETTE.lanternGlow, F(700, 64));
+    text('Keep the last lantern lit through seven nights.', FIELD.width / 2, 186, PALETTE.text, F(600, 22));
     // The stakes, in one glance: the goal, how you win, how you lose.
     const stakes = [
       { label: 'GOAL', color: '#4a90d9', desc: 'Light all seven lanterns before dawn' },
       { label: 'WIN', color: '#4caf7d', desc: "Fill each night's lantern quota — boss nights need her gone too" },
-      { label: 'LOSE', color: '#ff6b6b', desc: 'Lose all three hearts and the light goes out' },
+      { label: 'LOSE', color: '#ff6b6b', desc: `Lose all ${diff.hearts} hearts and the light goes out` },
     ];
     stakes.forEach((s, i) => {
-      const y = 232 + i * 30;
+      const y = 222 + i * 26;
       const lx = FIELD.width / 2 - 330;
       fillRound(lx, y - 19, 64, 24, 7, s.color);
       text(s.label, lx + 32, y, '#0d0a1a', F(700, 14));
@@ -661,7 +667,7 @@ export function createRenderer(canvas) {
       ctx.textAlign = 'center';
     });
     // How to keep the light, in three steps.
-    text('HOW TO KEEP THE LIGHT', FIELD.width / 2, 344, PALETTE.lanternGlow, F(700, 18));
+    text('HOW TO KEEP THE LIGHT', FIELD.width / 2, 322, PALETTE.lanternGlow, F(700, 18));
     const steps = [
       { title: '1 · SHOOT', lines: ['Click or Space fires', 'embers at the moths'] },
       { title: '2 · GATHER', lines: ['Burst moths, collect', 'the light shards'] },
@@ -672,17 +678,35 @@ export function createRenderer(canvas) {
     const sx0 = FIELD.width / 2 - (steps.length * sw + (steps.length - 1) * sgap) / 2;
     steps.forEach((s, i) => {
       const x = sx0 + i * (sw + sgap);
-      fillRound(x, 360, sw, 86, 12, PALETTE.card);
-      text(s.title, x + sw / 2, 392, PALETTE.lanternGlow, F(700, 18));
-      text(s.lines[0], x + sw / 2, 418, PALETTE.text, F(400, 15));
-      text(s.lines[1], x + sw / 2, 438, PALETTE.text, F(400, 15));
+      fillRound(x, 336, sw, 80, 12, PALETTE.card);
+      text(s.title, x + sw / 2, 366, PALETTE.lanternGlow, F(700, 18));
+      text(s.lines[0], x + sw / 2, 390, PALETTE.text, F(400, 15));
+      text(s.lines[1], x + sw / 2, 410, PALETTE.text, F(400, 15));
     });
-    text('8 FOES · 12 UPGRADES · 3-PHASE BOSS · 7 NAMED NIGHTS · ENDLESS', FIELD.width / 2, 478, PALETTE.muted, F(600, 17));
-    text('WASD move · Mouse aim · E Flare · P pause · M mute', FIELD.width / 2, 506, PALETTE.muted, F(600, 16));
+    text('8 FOES · 12 UPGRADES · 3-PHASE BOSS · 7 NAMED NIGHTS · 3 DIFFICULTIES · ENDLESS', FIELD.width / 2, 446, PALETTE.muted, F(600, 17));
+    text('WASD move · Mouse aim · E Flare · P pause · M mute', FIELD.width / 2, 470, PALETTE.muted, F(600, 16));
+    // The keeping: three difficulties, picked with 1 / 2 / 3 or a click. Keeper
+    // is the intended game; Rookie is gentler with an extra heart; Inferno
+    // spawns faster and pays half as much score again.
+    text('CHOOSE YOUR KEEPING — PRESS 1 / 2 / 3 OR CLICK', FIELD.width / 2, 498, PALETTE.lanternGlow, F(700, 18));
+    const { w: dw, h: dh, gap: dgap, y: dy0 } = DIFF_CARD;
+    const dtotal = DIFFICULTIES.length * dw + (DIFFICULTIES.length - 1) * dgap;
+    const dx0 = FIELD.width / 2 - dtotal / 2;
+    DIFFICULTIES.forEach((d, i) => {
+      const x = dx0 + i * (dw + dgap);
+      const selected = d.id === state.difficulty;
+      fillRound(x, dy0, dw, dh, 12, PALETTE.card);
+      ctx.strokeStyle = selected ? PALETTE.lanternGlow : PALETTE.cardEdge;
+      ctx.lineWidth = selected ? 3 : 2;
+      ctx.stroke();
+      text(selected ? `✓ ${i + 1} · ${d.title.toUpperCase()}` : `${i + 1} · ${d.title.toUpperCase()}`, x + dw / 2, dy0 + 26, selected ? PALETTE.lanternGlow : PALETTE.text, F(700, 18));
+      text(`Spawn ×${d.spawnRate} · ${d.hearts} hearts`, x + dw / 2, dy0 + 48, PALETTE.text, F(400, 15));
+      text(`Score ×${d.scoreMult} · ${d.tagline}`, x + dw / 2, dy0 + 66, PALETTE.muted, F(400, 14));
+    });
     const runs = (records && records.runs) || [];
-    text(best > 0 ? `Best ${best}` + (runs.length ? ` · Last runs ${runs.join(' · ')}` : '') : 'No lantern lit yet — be the first', FIELD.width / 2, 534, PALETTE.muted, F(600, 17));
-    text('Press Space or click to begin', FIELD.width / 2, 572, PALETTE.lanternGlow, F(700, 24));
-    text('An original game — no libraries, no network, all art and sound made here.', FIELD.width / 2, 612, PALETTE.muted, F(400, 15));
+    text(best > 0 ? `Best ${best}` + (runs.length ? ` · Last runs ${runs.join(' · ')}` : '') : 'No lantern lit yet — be the first', FIELD.width / 2, 606, PALETTE.muted, F(600, 17));
+    text('Press Space or click to begin', FIELD.width / 2, 634, PALETTE.lanternGlow, F(700, 24));
+    text('An original game — no libraries, no network, all art and sound made here.', FIELD.width / 2, 660, PALETTE.muted, F(400, 15));
     ctx.textAlign = 'left';
   }
 
@@ -786,8 +810,9 @@ export function createRenderer(canvas) {
     dim();
     panel(FIELD.width / 2 - 300, 160, 600, 380);
     ctx.textAlign = 'center';
+    const diff = difficultyById(state.difficulty);
     text('The light went out', FIELD.width / 2, 250, PALETTE.danger, F(700, 52));
-    text(`Night ${state.night} · ${state.kills} moths burst`, FIELD.width / 2, 306, PALETTE.text, F(600, 22));
+    text(`Night ${state.night} · ${state.kills} moths burst · ${diff.title}`, FIELD.width / 2, 306, PALETTE.text, F(600, 22));
     text(`Score ${state.score}`, FIELD.width / 2, 356, PALETTE.text, F(700, 30));
     text(`Best ${best}`, FIELD.width / 2, 392, PALETTE.muted, F(600, 18));
     text(`Accuracy ${accuracy(state)}% · ${state.shotsFired} embers fired`, FIELD.width / 2, 424, PALETTE.muted, F(600, 18));
@@ -861,7 +886,7 @@ export function createRenderer(canvas) {
       text(got ? `✓ ${f.title}` : `· ${f.title}`, x, y, got ? PALETTE.lanternGlow : PALETTE.muted, F(600, 15));
     });
     ctx.textAlign = 'center';
-    text(`Best ${best}`, FIELD.width / 2, 624, PALETTE.muted, F(600, 18));
+    text(`Best ${best} · ${difficultyById(state.difficulty).title} · Score ×${difficultyById(state.difficulty).scoreMult}`, FIELD.width / 2, 624, PALETTE.muted, F(600, 18));
     text('Press R or click to play again · Space for endless nights', FIELD.width / 2, 648, PALETTE.lanternGlow, F(700, 20));
     ctx.textAlign = 'left';
   }
