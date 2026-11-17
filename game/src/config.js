@@ -138,6 +138,9 @@ export const BOSS = {
   shards: 30,
   spawnInterval: 2.4,
   contactDamage: 1,
+  /** Below this fraction of health she bursts in fury: one ring of gloom orbs. */
+  desperateAt: 0.25,
+  desperateOrbs: 8,
 };
 
 export const SHARD = {

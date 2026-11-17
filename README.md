@@ -33,8 +33,10 @@ deal with both — and dark-violet Gloom Spitters hold at range and spit slow
 gloom orbs at you, telegraphing each shot with a flare: step aside, or shoot
 the orb down; from night 5, slow old Elders drift in, tough at 3 hp but heavy
 with 4 shards. Every 3rd night a Gloom Matriarch boss guards the lantern — and
-below half health she enrages, moving faster and calling moths sooner. Three
-hearts; a touch costs one, unless a Lantern Ward eats the hit. Light all 7
+below half health she enrages, moving faster and calling moths sooner; below a
+quarter she bursts in fury, firing one ring of gloom orbs in every direction —
+dodge it or shoot the orbs down. Three hearts; a touch costs one, unless a
+Lantern Ward eats the hit. Light all 7
 lanterns and dawn breaks — you win. Lose all hearts and the light goes out.
 After a win, Space keeps playing endless nights.
 
@@ -49,13 +51,14 @@ moth cap rises, so hold the line until dawn.
 
 - A complete loop: title → 7 named nights with escalating moths, darters,
   wisps, splitters, motes, elders, spitters and fleeing lantern-moths →
-  an enraging boss who changes what she summons → 11 upgrade choices →
-  victory or game-over screen → restart / endless. Each night has its own
-  name and twist: First Dark, Wisp Tide, the Matriarch Wakes, Spitter's
-  Watch, Swarm Night, the Matriarch Returns, and the Dawn Rush finale.
+  an enraging boss who changes what she summons and bursts in fury at low
+  health → 11 upgrade choices → victory or game-over screen → restart /
+  endless. Each night has its own name and twist: First Dark, Wisp Tide, the
+  Matriarch Wakes, Spitter's Watch, Swarm Night, the Matriarch Returns, and
+  the Dawn Rush finale.
 - Original art drawn in code (no images) and original sound synthesised with
   WebAudio (no audio files): shoot, burst, pickup, hurt, lantern, upgrade,
-  boss, nova, ward, spit, flare, victory and defeat cues over a soft ambient pad.
+  boss, nova, ward, spit, flare, fury, victory and defeat cues over a soft ambient pad.
 - No libraries, no network, no build step: plain static files under `game/`,
   playable offline in a desktop browser from `game/index.html`.
 

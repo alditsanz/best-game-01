@@ -43,6 +43,7 @@ export const EVENT_ENRAGE = 256;
 export const EVENT_WARD = 512;
 export const EVENT_SPIT = 1024;
 export const EVENT_FLARE = 2048;
+export const EVENT_DESPERATE = 4096;
 
 export const KIND_MOTH = 'moth';
 export const KIND_DARTER = 'darter';
@@ -233,6 +234,7 @@ export function createWorld(random) {
       spawnTimer: 1.2,
       spawnInterval: BOSS.spawnInterval,
       enraged: false,
+      desperate: false,
     };
     return EVENT_BOSS;
   }
@@ -336,8 +338,8 @@ export function createWorld(random) {
   /** A spitter looses one gloom orb at the keeper — slow, glowing, shootable. */
   function fireOrb(m, events) {
     state.orbs.push({
-      x: m.x + m.lx * (m.radius + 10),
-      y: m.y + m.ly * (m.radius + 10),
+      x: Math.min(FIELD.width, Math.max(0, m.x + m.lx * (m.radius + 10))),
+      y: Math.min(FIELD.height, Math.max(0, m.y + m.ly * (m.radius + 10))),
       vx: m.lx * GloomOrb.speed,
       vy: m.ly * GloomOrb.speed,
       life: GloomOrb.life,
@@ -690,6 +692,25 @@ export function createWorld(random) {
       b.speed *= 1.25;
       b.spawnInterval = 2.0;
       events |= EVENT_ENRAGE;
+    }
+    // Below a quarter she bursts in fury — one ring of gloom orbs, once.
+    // The ring is slow and shootable, but standing still inside it hurts.
+    if (!b.desperate && b.hp <= b.maxHp * BOSS.desperateAt) {
+      b.desperate = true;
+      for (let i = 0; i < BOSS.desperateOrbs; i += 1) {
+        const a = (i / BOSS.desperateOrbs) * TAU;
+        state.orbs.push({
+          x: Math.min(FIELD.width, Math.max(0, b.x + Math.cos(a) * (b.radius + 10))),
+          y: Math.min(FIELD.height, Math.max(0, b.y + Math.sin(a) * (b.radius + 10))),
+          vx: Math.cos(a) * GloomOrb.speed,
+          vy: Math.sin(a) * GloomOrb.speed,
+          life: GloomOrb.life,
+        });
+      }
+      state.spitterShots += BOSS.desperateOrbs;
+      burst(b.x, b.y, '#c77dff', 24, 260);
+      addText(b.x, b.y - 60, 'FURY!', '#c77dff');
+      events |= EVENT_DESPERATE;
     }
     const p = state.player;
     const dx = p.x - b.x;
