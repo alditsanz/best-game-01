@@ -6,6 +6,7 @@
 import {
   BOSS,
   COMBO,
+  CHAIN,
   Darter,
   Elder,
   FIELD,
@@ -70,6 +71,7 @@ function freshUpgrades() {
     comboMax: COMBO.max,
     ward: 0,
     orbit: 0,
+    chain: 0,
   };
 }
 
@@ -86,6 +88,8 @@ export function createWorld(random) {
     orbsShotDown: 0,
     orbHits: 0,
     orbitHits: 0,
+    chainHits: 0,
+    chainFx: [],
     shards: [],
     particles: [],
     texts: [],
@@ -151,6 +155,8 @@ export function createWorld(random) {
     state.orbsShotDown = 0;
     state.orbHits = 0;
     state.orbitHits = 0;
+    state.chainHits = 0;
+    state.chainFx.length = 0;
     state.shards.length = 0;
     state.particles.length = 0;
     state.texts.length = 0;
@@ -274,7 +280,7 @@ export function createWorld(random) {
     state.texts.push({ x, y, text, color, life: 1 });
   }
 
-  function killMoth(index, events) {
+  function killMoth(index, events, allowChain) {
     const moth = state.moths[index];
     state.moths.splice(index, 1);
     state.kills += 1;
@@ -300,6 +306,33 @@ export function createWorld(random) {
     burst(moth.x, moth.y, color, darter ? 18 : wisp ? 8 : splitter ? 22 : spitter ? 16 : lantern ? 14 : elder ? 20 : 6, 180);
     dropShards(moth.x, moth.y, darter ? Darter.shards : wisp ? Wisp.shards : splitter ? Splitter.shards : spitter ? Spitter.shards : lantern ? LanternMoth.shards : mote ? Mote.shards : elder ? Elder.shards : MOTH.shards);
     addText(moth.x, moth.y - 18, `+${gained}`, '#ffe9a8');
+    // Ember Chain: the burst leaps to the nearest moth nearby, once per level.
+    // Chain kills do not chain again — one leap per burst, not a cascade.
+    if (allowChain !== false && state.upgrades.chain > 0) {
+      let fx = moth.x;
+      let fy = moth.y;
+      for (let hop = 0; hop < state.upgrades.chain; hop += 1) {
+        let target = -1;
+        let targetD = CHAIN.range * CHAIN.range;
+        for (let j = 0; j < state.moths.length; j += 1) {
+          const m2 = state.moths[j];
+          const dx = m2.x - fx;
+          const dy = m2.y - fy;
+          const d2 = dx * dx + dy * dy;
+          if (d2 < targetD) { targetD = d2; target = j; }
+        }
+        if (target < 0) break;
+        const m2 = state.moths[target];
+        state.chainFx.push({ x1: fx, y1: fy, x2: m2.x, y2: m2.y, life: 0.25 });
+        fx = m2.x;
+        fy = m2.y;
+        m2.hp -= CHAIN.damage;
+        m2.flash = 0.12;
+        state.chainHits += 1;
+        burst(m2.x, m2.y, '#fff3c4', 5, 140);
+        if (m2.hp <= 0) events = killMoth(target, events, false);
+      }
+    }
     if (splitter) {
       // A burst splitter tears into two fast motes — kill it at range, or deal with both.
       for (let i = 0; i < 2; i += 1) {
@@ -783,6 +816,10 @@ export function createWorld(random) {
       t.y -= 34 * dt;
       t.life -= dt * 0.9;
       if (t.life <= 0) state.texts.splice(i, 1);
+    }
+    for (let i = state.chainFx.length - 1; i >= 0; i -= 1) {
+      state.chainFx[i].life -= dt;
+      if (state.chainFx[i].life <= 0) state.chainFx.splice(i, 1);
     }
   }
 

@@ -201,6 +201,12 @@ export const ORBIT = {
   hitCooldown: 0.5,
 };
 
+/** Ember Chain: a burst leaps to the nearest moth nearby, once per chain level. */
+export const CHAIN = {
+  range: 160,
+  damage: 1,
+};
+
 /** Lantern Flare: press E to spend shards from the lantern meter and burst every
  * moth (and gloom orb) close to the keeper. Shards are the night's quota, so a
  * flare buys safety with progress — and it has a cooldown. */
@@ -277,6 +283,12 @@ export const UPGRADES = [
     title: 'Lantern Ward',
     blurb: 'A ward that absorbs one hit each night, then renews.',
     apply: (u) => { u.ward += 1; },
+  },
+  {
+    id: 'ember-chain',
+    title: 'Ember Chain',
+    blurb: 'Bursts leap to a nearby moth, once per level.',
+    apply: (u) => { u.chain += 1; },
   },
   {
     id: 'ember-orbit',

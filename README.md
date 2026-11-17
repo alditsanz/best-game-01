@@ -26,8 +26,8 @@ when spitters double; night 5 the Swarm Night, the garden spawning faster with
 more moths at once; night 6 the Matriarch Returns, calling darters instead of
 moths; night 7 the Dawn Rush. Between nights, choose 1 of 3 blessings (faster
 embers, tri-flame, piercing embers, swift boots, wide net, heavy embers, warm
-heart, Ember Nova, Ember Echo, Lantern Ward, Ember Orbit). From night 2, quick
-darting Gloom Wisps weave in among the moths and darters; from night 3, bloated
+heart, Ember Nova, Ember Echo, Lantern Ward, Ember Orbit, Ember Chain). From
+night 2, quick darting Gloom Wisps weave in among the moths and darters; from night 3, bloated
 Gloom Splitters burst into two fast motes when killed — shoot them at range or
 deal with both — and dark-violet Gloom Spitters hold at range and spit slow
 gloom orbs at you, telegraphing each shot with a flare: step aside, or shoot
@@ -54,7 +54,7 @@ moth cap rises, so hold the line until dawn.
 - A complete loop: title → 7 named nights with escalating moths, darters,
   wisps, splitters, motes, elders, spitters and fleeing lantern-moths →
   an enraging boss who changes what she summons and bursts in fury at low
-  health → 11 upgrade choices → victory or game-over screen → restart /
+  health → 12 upgrade choices → victory or game-over screen → restart /
   endless. Each night has its own name and twist: First Dark, Wisp Tide, the
   Matriarch Wakes, Spitter's Watch, Swarm Night, the Matriarch Returns, and
   the Dawn Rush finale.

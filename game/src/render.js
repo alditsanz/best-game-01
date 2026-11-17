@@ -495,6 +495,16 @@ export function createRenderer(canvas) {
       dot(pt.x, pt.y, pt.size, pt.color);
     }
     ctx.globalAlpha = 1;
+    for (const fx of state.chainFx) {
+      ctx.globalAlpha = Math.max(0, fx.life / 0.25);
+      ctx.strokeStyle = '#fff3c4';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(fx.x1, fx.y1);
+      ctx.lineTo(fx.x2, fx.y2);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
     ctx.textAlign = 'center';
     for (const t of state.texts) {
       ctx.globalAlpha = Math.max(0, Math.min(1, t.life));
