@@ -304,14 +304,16 @@ export function createWorld(random) {
     };
   }
 
-  function spawnMoth() {
-    const p = edgePoint();
+  /** The spawn mix for the current night, in one place — the real spawner and
+   * the title garden's near-keeper spawner both draw from it, so the mix
+   * never drifts between the two paths.
+   * Night 1 keeps the old 30% darter share. From night 2, 6% of spawns are
+   * lantern moths and wisps are 18% — 30% on the Wisp Tide (night 2) — and
+   * 30% of the rest are darters; from night 3, 12% are splitters and 10%
+   * are spitters — 20% on Spitter's Watch (night 4); from night 5, 10% of
+   * the rest are elders — moths stay the majority. */
+  function pickSpawnKind() {
     const r = random.next();
-    // Night 1 keeps the old 30% darter share. From night 2, 6% of spawns are
-    // lantern moths and wisps are 18% — 30% on the Wisp Tide (night 2) — and
-    // 30% of the rest are darters; from night 3, 12% are splitters and 10%
-    // are spitters — 20% on Spitter's Watch (night 4); from night 5, 10% of
-    // the rest are elders — moths stay the majority.
     const splitterAt = state.night >= 3 ? Splitter.spawnShare : 0;
     const spitterShare = nightTheme(state.night).id === 'spitters-watch' ? 0.20 : Spitter.spawnShare;
     const spitterAt = splitterAt + (state.night >= 3 ? spitterShare * (1 - splitterAt) : 0);
@@ -320,8 +322,25 @@ export function createWorld(random) {
     const wispAt = lanternAt + (state.night >= 2 ? wispShare * (1 - lanternAt) : 0);
     const elderAt = wispAt + (state.night >= 5 ? Elder.spawnShare * (1 - wispAt) : 0);
     const darterAt = state.night >= 2 ? elderAt + (1 - elderAt) * 0.3 : 0.3;
-    const kind = r < splitterAt ? KIND_SPLITTER : r < spitterAt ? KIND_SPITTER : r < lanternAt ? KIND_LANTERN_MOTH : r < wispAt ? KIND_WISP : r < elderAt ? KIND_ELDER : r < darterAt ? KIND_DARTER : KIND_MOTH;
-    state.moths.push(makeMoth(kind, p.x, p.y));
+    return r < splitterAt ? KIND_SPLITTER : r < spitterAt ? KIND_SPITTER : r < lanternAt ? KIND_LANTERN_MOTH : r < wispAt ? KIND_WISP : r < elderAt ? KIND_ELDER : r < darterAt ? KIND_DARTER : KIND_MOTH;
+  }
+
+  /** Attract-only spawn: a moth arrives near the keeper, not at a random
+   * edge — the title preview's camera follows the keeper, so the fight stays
+   * in frame instead of the keeper chasing dots across an empty field. The
+   * kind comes from the same night mix as the real game. */
+  function attractSpawn() {
+    const p = state.player;
+    const a = random.range(0, TAU);
+    const d = random.range(200, 360);
+    const x = Math.min(FIELD.width - 20, Math.max(20, p.x + Math.cos(a) * d));
+    const y = Math.min(FIELD.height - 20, Math.max(20, p.y + Math.sin(a) * d));
+    state.moths.push(makeMoth(pickSpawnKind(), x, y));
+  }
+
+  function spawnMoth() {
+    const p = edgePoint();
+    state.moths.push(makeMoth(pickSpawnKind(), p.x, p.y));
   }
 
   function spawnBoss() {
@@ -481,7 +500,7 @@ export function createWorld(random) {
     return events | EVENT_SPIT;
   }
 
-  function stepOrbs(dt, events) {
+  function stepOrbs(dt, events, attract) {
     const p = state.player;
     for (let i = state.orbs.length - 1; i >= 0; i -= 1) {
       const o = state.orbs[i];
@@ -495,7 +514,8 @@ export function createWorld(random) {
         state.orbs.splice(i, 1);
         state.orbHits += 1;
         burst(o.x, o.y, '#c77dff', 10, 160);
-        events = hurtPlayer(events);
+        // Attract mode: the orb bursts harmlessly, like a moth's touch.
+        if (!attract) events = hurtPlayer(events);
         continue;
       }
       if (o.life <= 0 || o.x < -30 || o.x > FIELD.width + 30 || o.y < -30 || o.y > FIELD.height + 30) {
@@ -717,7 +737,7 @@ export function createWorld(random) {
     return events;
   }
 
-  function stepMoths(dt, events) {
+  function stepMoths(dt, events, attract) {
     const p = state.player;
     for (let i = state.moths.length - 1; i >= 0; i -= 1) {
       const m = state.moths[i];
@@ -811,7 +831,9 @@ export function createWorld(random) {
       const rr = m.x - p.x;
       const ry = m.y - p.y;
       if (rr * rr + ry * ry < (m.radius + PLAYER.radius) * (m.radius + PLAYER.radius)) {
-        events = hurtPlayer(events);
+        // In attract mode the moth bursts against the keeper harmlessly — no
+        // heart lost, no combo reset; the title garden never hurts its keeper.
+        if (!attract) events = hurtPlayer(events);
         state.moths.splice(i, 1);
         burst(m.x, m.y, '#8f7bd8', 10, 160);
       }
@@ -981,7 +1003,47 @@ export function createWorld(random) {
     state.pickedPath = null;
   }
 
-  /** Advance the world one fixed step. In attract mode the garden drifts on its own. */
+  /** The title screen's pilot: the keeper plays alone. It aims at the nearest
+   * moth, kites when one closes in, and gathers shards when the way is clear —
+   * the same steering as the screenshot autopilot, kept small and attract-only
+   * so the real game's balance never sees it. */
+  function attractPilot(state) {
+    const p = state.player;
+    let nearest = null;
+    let nearestD = Infinity;
+    for (const m of state.moths) {
+      const d = (m.x - p.x) * (m.x - p.x) + (m.y - p.y) * (m.y - p.y);
+      if (d < nearestD) { nearestD = d; nearest = m; }
+    }
+    const aim = nearest ? { x: nearest.x, y: nearest.y } : { x: FIELD.width / 2, y: FIELD.height / 2 };
+    let mx = 0;
+    let my = 0;
+    const danger = Math.sqrt(nearestD);
+    if (nearest && danger < 120) {
+      mx += (p.x - nearest.x) / (danger || 1);
+      my += (p.y - nearest.y) / (danger || 1);
+      mx += (-(p.y - nearest.y) / (danger || 1)) * 0.6;
+      my += ((p.x - nearest.x) / (danger || 1)) * 0.6;
+    } else {
+      let shard = null;
+      let shardD = Infinity;
+      for (const s of state.shards) {
+        const d = (s.x - p.x) * (s.x - p.x) + (s.y - p.y) * (s.y - p.y);
+        if (d < shardD) { shardD = d; shard = s; }
+      }
+      if (shard && shardD < 340 * 340) {
+        mx += (shard.x - p.x) / (Math.sqrt(shardD) || 1);
+        my += (shard.y - p.y) / (Math.sqrt(shardD) || 1);
+      } else {
+        mx += (FIELD.width / 2 - p.x) / 400;
+        my += (FIELD.height / 2 - p.y) / 400;
+      }
+    }
+    const len = Math.hypot(mx, my) || 1;
+    return { move: { x: mx / len, y: my / len }, aim, firing: nearest !== null };
+  }
+
+  /** Advance the world one fixed step. In attract mode the garden plays itself. */
   function step(dt, move, aim, firing, attract) {
     let events = 0;
     state.time += dt;
@@ -993,16 +1055,25 @@ export function createWorld(random) {
     if (state.flareTimer > 0) state.flareTimer -= dt;
     const p = state.player;
     if (attract) {
-      // The title screen's live garden: a few more moths, a little faster, so
-      // the frame behind the manual is visibly alive, not an empty dark field.
-      if (state.moths.length < 10 && random.next() < dt * 2.5) spawnMoth();
-      for (let i = state.moths.length - 1; i >= 0; i -= 1) {
-        const m = state.moths[i];
-        m.wobble += m.wobbleSpeed * dt;
-        m.x += Math.cos(m.wobble) * 40 * dt;
-        m.y += 26 * dt + Math.sin(m.wobble) * 20 * dt;
-        if (m.y > FIELD.height + 40) state.moths.splice(i, 1);
+      // The title screen's live garden: the keeper plays alone under the
+      // autopilot — it shoots, bursts moths and gathers shards, so the LIVE
+      // preview on the title shows a real game being played, not moths
+      // drifting past. The keeper cannot lose hearts here; no quota, boss or
+      // night-clear is ever checked in attract mode.
+      if (state.moths.length < 12 && random.next() < dt * 5) attractSpawn();
+      const pilot = attractPilot(state);
+      p.x = Math.min(FIELD.width - PLAYER.radius, Math.max(PLAYER.radius, p.x + pilot.move.x * state.upgrades.speed * dt));
+      p.y = Math.min(FIELD.height - PLAYER.radius, Math.max(PLAYER.radius, p.y + pilot.move.y * state.upgrades.speed * dt));
+      p.hearts = p.maxHearts;
+      p.fireTimer -= dt;
+      if (pilot.firing && p.fireTimer <= 0) {
+        p.fireTimer = state.upgrades.fireInterval;
+        fireEmbers(pilot.aim);
       }
+      let events = stepEmbers(dt, 0);
+      events = stepMoths(dt, events, true);
+      events = stepOrbs(dt, events, true);
+      events = stepShards(dt, events);
       stepParticles(dt);
       return 0;
     }

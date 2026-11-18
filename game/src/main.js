@@ -243,9 +243,7 @@ function runGame() {
     if (screen === SCREEN_TITLE) {
       // A click on a difficulty card picks it; anywhere else starts the game.
       const aim = input.aim();
-      const { w: dw, h: dh, gap: dgap, y: dy0 } = DIFF_CARD;
-      const dtotal = 3 * dw + 2 * dgap;
-      const dx0 = FIELD.width / 2 - dtotal / 2;
+      const { w: dw, h: dh, gap: dgap, y: dy0, x: dx0 } = DIFF_CARD;
       for (let i = 0; i < 3; i += 1) {
         const x = dx0 + i * (dw + dgap);
         if (aim.x >= x && aim.x <= x + dw && aim.y >= dy0 && aim.y <= dy0 + dh) {

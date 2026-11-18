@@ -78,6 +78,14 @@ Dawnbringer and Full Hearts. The play HUD shows the stakes (WIN light 7
 lanterns · LOSE all 3 hearts), what is alive in the garden right now by kind, and
 what the next night will be.
 
+The title screen plays the game live while you read: a framed LIVE preview
+shows the keeper fighting alone under the autopilot (nearest moth, kite,
+gather shards) with a live tally — moths burst, score, shards gathered —
+and the manual beside it, so the first screen is a game being played, not a
+poster. The victory and game-over screens name the next goal — Inferno for
+a Keeper win, the first unearned feat for an Inferno win, the win itself
+for a run that ended early — so every ending points at the next run.
+
 ## Difficulties
 
 Pick your keeping on the title screen (press 1 / 2 / 3 or click a card); the
@@ -102,8 +110,8 @@ screens record which tier the run was played on. Local autopilot measurement
   wisps, splitters, motes, elders, spitters and fleeing lantern-moths →
   an enraging boss who changes what she summons and bursts in fury at low
   health → 12 upgrade choices + 3 roads between nights, each night graded
-  S/A/B/C → victory or game-over screen with 10 feats → restart /
-  endless. Three difficulties (Rookie / Keeper / Inferno) scale only the
+  S/A/B/C → victory or game-over screen with 10 feats and the next goal →
+  restart / endless. Three difficulties (Rookie / Keeper / Inferno) scale only the
   spawn rate, the hearts and the score rate. Each night has its own name and twist: First Dark, Wisp Tide, the
   Matriarch Wakes, Spitter's Watch, Swarm Night, the Matriarch Returns, and
   the Dawn Rush finale.

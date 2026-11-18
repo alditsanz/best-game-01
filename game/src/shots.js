@@ -8,7 +8,7 @@ import { FIELD, STEP } from './config.js';
 import { EVENT_NIGHT_CLEAR, EVENT_OVER, EVENT_WIN } from './world.js';
 import { SCREEN_OVER, SCREEN_PLAY, SCREEN_TITLE, SCREEN_UPGRADE, SCREEN_WIN } from './render.js';
 
-const START_SECONDS = 5;
+const START_SECONDS = 10;
 const LIMIT_SECONDS = 1500;
 
 /** Where the autopilot wants to go, and whether it fires, for this state. A sloppy pilot
