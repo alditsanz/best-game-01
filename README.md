@@ -74,9 +74,12 @@ screen lists all seven grades, the run counted ten ways (score, moths burst,
 accuracy, embers fired, flawless nights, Nova fires, chain hits, Surge
 triggers, orbs shot down, time), and the ten feats: First Light, Flawless Keeper, Nova
 Storm, Chain Master, Warden, Mote Hunter, Orb Breaker, Sharpshooter,
-Dawnbringer and Full Hearts. The play HUD shows the stakes (WIN light 7
-lanterns · LOSE all 3 hearts), what is alive in the garden right now by kind, and
-what the next night will be.
+Dawnbringer and Full Hearts — a feat you have not earned yet shows how
+close you came (42/50 motes, 29%/40% accuracy), so the dawn screen reads
+as a list of near-misses to chase, not dead slots. The play HUD shows the stakes (WIN light 7
+lanterns · LOSE all 3 hearts), what is alive in the garden right now by kind
+(the census wraps to a second line on a busy night instead of spilling
+past its panel), and what the next night will be.
 
 The title screen plays the game live while you read: a framed LIVE preview
 shows the keeper fighting alone under the autopilot (nearest moth, kite,

@@ -485,7 +485,7 @@ export function createRenderer(canvas) {
     ctx.restore();
   }
 
-  function drawWorld(state, time) {
+  function drawWorld(state, time, showTexts = true) {
     drawGarden(state, time);
     for (const s of state.shards) {
       const tw = 0.7 + 0.3 * Math.sin(time * 6 + s.x);
@@ -549,12 +549,19 @@ export function createRenderer(canvas) {
       ctx.stroke();
     }
     ctx.globalAlpha = 1;
-    ctx.textAlign = 'center';
-    for (const t of state.texts) {
-      ctx.globalAlpha = Math.max(0, Math.min(1, t.life));
-      text(t.text, t.x, t.y, t.color, F(700, 18));
+    // Floating score texts belong to live play (and to the title's LIVE
+    // window, which draws the world with showTexts on). On the end screens
+    // they are stale leftovers from the moment the night cleared or dawn
+    // broke — a "FLAWLESS! +250" used to print half-clipped over the upgrade
+    // panel and the victory panel — so those screens pass showTexts=false.
+    if (showTexts) {
+      ctx.textAlign = 'center';
+      for (const t of state.texts) {
+        ctx.globalAlpha = Math.max(0, Math.min(1, t.life));
+        text(t.text, t.x, t.y, t.color, F(700, 18));
+      }
+      ctx.globalAlpha = 1;
     }
-    ctx.globalAlpha = 1;
   }
 
   function drawHearts(state) {
@@ -581,14 +588,29 @@ export function createRenderer(canvas) {
     }
   }
 
-  /** What is alive in the garden right now, by kind: "Moths 8 · Darters 2 · Wisps 1". */
-  function censusLine(state) {
-    const names = { moth: 'Moths', darter: 'Darters', wisp: 'Wisps', splitter: 'Splitters', spitter: 'Spitters', 'lantern-moth': 'Lantern', mote: 'Motes', elder: 'Elders' };
+  /** What is alive in the garden right now, by kind: "Moths 8 · Darters 2 · Wisps 1".
+   * Wrapped to lines that fit the HUD panel: the full census of a busy night
+   * measures ~545px at 15px type against a 352px panel, so it used to spill
+   * ~200px past the panel edge onto the dark field. The lantern-moth is
+   * named in full ("Lantern-moths") — the bare "Lantern" read as a count of
+   * lanterns next to the Lantern meter. */
+  function censusLines(state) {
+    const names = { moth: 'Moths', darter: 'Darters', wisp: 'Wisps', splitter: 'Splitters', spitter: 'Spitters', 'lantern-moth': 'Lantern-moths', mote: 'Motes', elder: 'Elders' };
     const counts = {};
     for (const m of state.moths) counts[m.kind] = (counts[m.kind] || 0) + 1;
     const parts = Object.keys(names).filter((k) => counts[k]).map((k) => `${names[k]} ${counts[k]}`);
     if (state.boss) parts.unshift('Matriarch!');
-    return parts.length ? parts.join(' · ') : 'Garden clear';
+    if (!parts.length) return ['Garden clear'];
+    ctx.font = F(600, 15);
+    const lines = [];
+    let cur = '';
+    for (const p of parts) {
+      const next = cur ? `${cur} · ${p}` : p;
+      if (cur && ctx.measureText(next).width > 320) { lines.push(cur); cur = p; }
+      else cur = next;
+    }
+    if (cur) lines.push(cur);
+    return lines;
   }
 
   /** What comes after this night. */
@@ -619,7 +641,7 @@ export function createRenderer(canvas) {
     if (state.orbiters.length > 0) lines.push({ str: `Orbit ×${state.orbiters.length}`, color: '#ffd97a', font: F(700, 18) });
     if (state.night === NIGHTS_TO_WIN) lines.push({ str: 'DAWN RUSH — hold the line!', color: '#ff6b6b', font: F(700, 18) });
     lines.push({ str: state.endless ? `Endless — survive · LOSE all ${state.player.maxHearts} hearts` : `WIN light 7 lanterns · LOSE all ${state.player.maxHearts} hearts`, color: PALETTE.muted, font: F(600, 15) });
-    lines.push({ str: censusLine(state), color: PALETTE.text, font: F(600, 15) });
+    for (const s of censusLines(state)) lines.push({ str: s, color: PALETTE.text, font: F(600, 15) });
     lines.push({ str: nextLine(state), color: '#c77dff', font: F(600, 15) });
     // A dim panel keeps the left HUD readable over the keeper's glow.
     fillRound(12, 12, 352, 46 + lines.length * 22 + 8, 14, 'rgba(13, 10, 26, 0.55)');
@@ -693,7 +715,7 @@ export function createRenderer(canvas) {
   }
 
   function drawTitle(state, best, records, time) {
-    drawWorld(state, time);
+    drawWorld(state, time, false);
     dim(0.55);
     // Left: the manual.
     panel(TITLE_PANEL.x, TITLE_PANEL.y, TITLE_PANEL.w, TITLE_PANEL.h, 'rgba(30, 23, 56, 0.88)');
@@ -826,7 +848,7 @@ export function createRenderer(canvas) {
   }
 
   function drawUpgrade(state, best) {
-    drawWorld(state, 0);
+    drawWorld(state, 0, false);
     dim();
     ctx.textAlign = 'center';
     const grade = state.grades[state.night] || '—';
@@ -886,7 +908,7 @@ export function createRenderer(canvas) {
   }
 
   function drawPaused(state) {
-    drawWorld(state, 0);
+    drawWorld(state, 0, false);
     dim();
     ctx.textAlign = 'center';
     text('Paused', FIELD.width / 2, 330, PALETTE.text, F(700, 52));
@@ -916,7 +938,7 @@ export function createRenderer(canvas) {
   }
 
   function drawOver(state, best) {
-    drawWorld(state, 0);
+    drawWorld(state, 0, false);
     dim();
     panel(FIELD.width / 2 - 300, 160, 600, 380);
     ctx.textAlign = 'center';
@@ -941,7 +963,7 @@ export function createRenderer(canvas) {
   }
 
   function drawWin(state, best) {
-    drawWorld(state, 0);
+    drawWorld(state, 0, false);
     dim();
     panel(FIELD.width / 2 - 430, 88, 860, 580);
     ctx.textAlign = 'center';
@@ -985,7 +1007,22 @@ export function createRenderer(canvas) {
       text(s.label, x + sw / 2, y + 22, PALETTE.muted, F(600, 12));
       text(s.value, x + sw / 2, y + 48, PALETTE.text, F(700, 22));
     });
-    // The feats: what this run earned, and what it did not.
+    // The feats: what this run earned, and what it did not. A locked feat
+    // with a number behind it shows its progress (42/50 motes, 29%/40%
+    // accuracy) instead of a bare dot — an incremental goal reads as a
+    // near-miss to chase, not a dead slot. Thresholds are the same numbers
+    // checkFeats() in world.js unlocks on.
+    const featProgress = (f) => {
+      switch (f.id) {
+        case 'nova-storm': return `${Math.min(state.novaFires, 15)}/15`;
+        case 'chain-master': return `${Math.min(state.chainHits, 30)}/30`;
+        case 'warden': return `${Math.min(state.wardBlocks, 3)}/3`;
+        case 'mote-hunter': return `${Math.min(state.motesBurst, 50)}/50`;
+        case 'orb-breaker': return `${Math.min(state.orbsShotDown, 10)}/10`;
+        case 'sharpshooter': return `${accuracy(state)}%/40%`;
+        default: return null;
+      }
+    };
     text(`FEATS ${state.feats.length} / 10`, FIELD.width / 2, 474, PALETTE.lanternGlow, F(700, 16));
     ctx.textAlign = 'left';
     FEATS.forEach((f, i) => {
@@ -994,7 +1031,8 @@ export function createRenderer(canvas) {
       const x = FIELD.width / 2 - 380 + col * 390;
       const y = 492 + row * 22;
       const got = state.feats.includes(f.id);
-      text(got ? `✓ ${f.title}` : `· ${f.title}`, x, y, got ? PALETTE.lanternGlow : PALETTE.muted, F(600, 15));
+      const prog = got ? null : featProgress(f);
+      text(got ? `✓ ${f.title}` : prog ? `· ${f.title} — ${prog}` : `· ${f.title}`, x, y, got ? PALETTE.lanternGlow : PALETTE.muted, F(600, 15));
     });
     ctx.textAlign = 'center';
     text(nextGoal(state, best, true), FIELD.width / 2, 606, PALETTE.lanternGlow, F(700, 17));
