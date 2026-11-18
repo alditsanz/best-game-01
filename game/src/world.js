@@ -993,7 +993,9 @@ export function createWorld(random) {
     if (state.flareTimer > 0) state.flareTimer -= dt;
     const p = state.player;
     if (attract) {
-      if (state.moths.length < 6 && random.next() < dt * 0.9) spawnMoth();
+      // The title screen's live garden: a few more moths, a little faster, so
+      // the frame behind the manual is visibly alive, not an empty dark field.
+      if (state.moths.length < 10 && random.next() < dt * 2.5) spawnMoth();
       for (let i = state.moths.length - 1; i >= 0; i -= 1) {
         const m = state.moths[i];
         m.wobble += m.wobbleSpeed * dt;

@@ -71,11 +71,11 @@ Ember Orchard (5–6), Dawn Gate (night 7) — and the road screen shows where
 you are on the map. Every cleared night earns a grade from the hits you took
 (S for untouched, A for one hit, B for two, C for three or more), and the dawn
 screen lists all seven grades, the run counted ten ways (score, moths burst,
-accuracy, embers fired, flawless nights, Nova fires, chain hits, ward blocks,
-orbs shot down, time), and the ten feats: First Light, Flawless Keeper, Nova
+accuracy, embers fired, flawless nights, Nova fires, chain hits, Surge
+triggers, orbs shot down, time), and the ten feats: First Light, Flawless Keeper, Nova
 Storm, Chain Master, Warden, Mote Hunter, Orb Breaker, Sharpshooter,
 Dawnbringer and Full Hearts. The play HUD shows the stakes (WIN light 7
-lanterns · LOSE 0 hearts), what is alive in the garden right now by kind, and
+lanterns · LOSE all 3 hearts), what is alive in the garden right now by kind, and
 what the next night will be.
 
 ## Difficulties

@@ -158,6 +158,39 @@ export function createRenderer(canvas) {
       const alpha = 0.25 + 0.35 * (0.5 + 0.5 * Math.sin(time * 2 + f.phase * 3));
       dot(x, y, 2.2, `rgba(255, 233, 168, ${alpha})`);
     }
+
+    // Soft light pools on the ground: large, very dim, fixed by index — the
+    // field reads as a garden with lit patches, not a flat dark void.
+    for (let i = 0; i < 5; i += 1) {
+      const px = 180 + ((i * 271) % 920);
+      const py = 170 + ((i * 197) % 420);
+      const pool = ctx.createRadialGradient(px, py, 10, px, py, 130);
+      pool.addColorStop(0, 'rgba(87, 70, 143, 0.12)');
+      pool.addColorStop(1, 'rgba(87, 70, 143, 0)');
+      ctx.fillStyle = pool;
+      ctx.beginPath();
+      ctx.arc(px, py, 130, 0, TAU);
+      ctx.fill();
+    }
+
+    // Grass tufts and the odd dim ember-flower, fixed positions from the index
+    // so the garden looks the same every frame.
+    for (let i = 0; i < 54; i += 1) {
+      const gx = (i * 373 + 61) % FIELD.width;
+      const gy = 110 + ((i * 211 + 37) % 520);
+      const flower = i % 6 === 0;
+      ctx.strokeStyle = flower ? '#3a2d6b' : '#241b47';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(gx - 5, gy);
+      ctx.lineTo(gx - 7, gy - 8);
+      ctx.moveTo(gx, gy);
+      ctx.lineTo(gx, gy - 10);
+      ctx.moveTo(gx + 5, gy);
+      ctx.lineTo(gx + 7, gy - 8);
+      ctx.stroke();
+      if (flower) dot(gx, gy - 12, 3, '#6b57b8');
+    }
   }
 
   function drawPlayer(state, time) {
@@ -580,7 +613,7 @@ export function createRenderer(canvas) {
     if (state.surgeTimer > 0) lines.push({ str: `SURGE +1 dmg ${Math.ceil(state.surgeTimer)}s`, color: '#ff9d5c', font: F(700, 18) });
     if (state.orbiters.length > 0) lines.push({ str: `Orbit ×${state.orbiters.length}`, color: '#ffd97a', font: F(700, 18) });
     if (state.night === NIGHTS_TO_WIN) lines.push({ str: 'DAWN RUSH — hold the line!', color: '#ff6b6b', font: F(700, 18) });
-    lines.push({ str: state.endless ? 'Endless — survive · LOSE 0 hearts' : 'WIN light 7 lanterns · LOSE 0 hearts', color: PALETTE.muted, font: F(600, 15) });
+    lines.push({ str: state.endless ? `Endless — survive · LOSE all ${state.player.maxHearts} hearts` : `WIN light 7 lanterns · LOSE all ${state.player.maxHearts} hearts`, color: PALETTE.muted, font: F(600, 15) });
     lines.push({ str: censusLine(state), color: PALETTE.text, font: F(600, 15) });
     lines.push({ str: nextLine(state), color: '#c77dff', font: F(600, 15) });
     // A dim panel keeps the left HUD readable over the keeper's glow.
@@ -596,8 +629,15 @@ export function createRenderer(canvas) {
     fillRound(mx, 22, 300, 26, 13, PALETTE.panel);
     const frac = Math.min(1, state.shardsCollected / state.quota);
     fillRound(mx + 3, 25, Math.max(8, 294 * frac), 20, 10, PALETTE.lanternGlow);
+    // The meter text sits on the gold fill AND the dark panel, so it gets a
+    // dark outline and a pale face — legible at any fill level. (Before: dark
+    // navy text, so the "/ quota" tail vanished into the panel below ~60%.)
     ctx.textAlign = 'center';
-    text(`Lantern ${Math.min(state.shardsCollected, state.quota)} / ${state.quota}`, mx + 150, 41, '#241b47', F(700, 16));
+    ctx.font = F(700, 16);
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = 'rgba(13, 10, 26, 0.85)';
+    ctx.strokeText(`Lantern ${Math.min(state.shardsCollected, state.quota)} / ${state.quota}`, mx + 150, 41);
+    text(`Lantern ${Math.min(state.shardsCollected, state.quota)} / ${state.quota}`, mx + 150, 41, '#ffe9a8', F(700, 16));
     ctx.textAlign = 'left';
     if (state.boss) {
       const bx = FIELD.width / 2 - 200;
@@ -629,13 +669,17 @@ export function createRenderer(canvas) {
     ctx.textAlign = 'left';
   }
 
-  function dim() {
-    ctx.fillStyle = 'rgba(10, 7, 24, 0.72)';
+  /** The dim veil over the garden behind a screen: 0.72 for the end screens,
+   * 0.45 for the title, so the live garden shows through around the panel. */
+  function dim(alpha) {
+    ctx.fillStyle = `rgba(10, 7, 24, ${alpha ?? 0.72})`;
     ctx.fillRect(0, 0, FIELD.width, FIELD.height);
   }
 
-  function panel(x, y, w, h) {
-    ctx.fillStyle = PALETTE.panel;
+  /** A panel: solid by default; the title passes a translucent fill so the
+   * garden behind it stays faintly visible. */
+  function panel(x, y, w, h, color) {
+    ctx.fillStyle = color ?? PALETTE.panel;
     roundRect(ctx, x, y, w, h, 18);
     ctx.fill();
     ctx.strokeStyle = PALETTE.panelEdge;
@@ -645,8 +689,8 @@ export function createRenderer(canvas) {
 
   function drawTitle(state, best, records) {
     drawWorld(state, 0);
-    dim();
-    panel(FIELD.width / 2 - 360, 76, 720, 600);
+    dim(0.45);
+    panel(FIELD.width / 2 - 360, 76, 720, 600, 'rgba(30, 23, 56, 0.86)');
     const diff = difficultyById(state.difficulty);
     ctx.textAlign = 'center';
     text('EMBERKEEPER', FIELD.width / 2, 150, PALETTE.lanternGlow, F(700, 64));
@@ -858,7 +902,7 @@ export function createRenderer(canvas) {
       { label: 'FLAWLESS NIGHTS', value: String(state.flawlessNights) },
       { label: 'NOVA FIRES', value: String(state.novaFires) },
       { label: 'CHAIN HITS', value: String(state.chainHits) },
-      { label: 'WARD BLOCKS', value: String(state.wardBlocks) },
+      { label: 'SURGE TRIGGERS', value: String(state.surgeTriggers) },
       { label: 'ORBS SHOT DOWN', value: String(state.orbsShotDown) },
       { label: 'TIME', value: `${mins}:${String(secs).padStart(2, '0')}` },
     ];

@@ -117,9 +117,10 @@ export function stageShot(name, world) {
     return { screen: SCREEN_TITLE, best: 0 };
   }
   if (name === 'play') {
-    // Clear nights 1 and 2 with the sharp pilot, then play night 3 — a boss night —
-    // sloppily until the Matriarch arrives, and a little longer: a busy, dramatic frame.
-    for (let n = 1; n <= 2; n += 1) {
+    // Clear nights 1–5 with the sharp pilot, then play night 6 — a boss night
+    // with the biggest moth cap (23) — sloppily until the Matriarch arrives,
+    // and a little longer: a busy, dramatic frame, not a near-empty field.
+    for (let n = 1; n <= 5; n += 1) {
       const ev = runUntil(
         world,
         (e) => (e & EVENT_NIGHT_CLEAR) !== 0 || (e & EVENT_OVER) !== 0,
